@@ -1,0 +1,571 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+        "title": "Streaming API",
+        "version": "1.0.0",
+        "description": "Music streaming backend for a Media3/ExoPlayer client. Streaming works in two steps: request a short-lived signed URL via `/songs/{id}/stream-url`, then feed that URL to the player. The `/stream/{songId}` endpoint fully supports HTTP Range requests (200 / 206 / 416), which ExoPlayer relies on for seeking."
+    },
+    "servers": [
+        {
+            "url": "https://streaming-api.halitkalayci.com"
+        },
+        {
+            "url": "http://localhost:3000"
+        }
+    ],
+    "tags": [
+        {
+            "name": "songs",
+            "description": "Song catalog"
+        },
+        {
+            "name": "playlists",
+            "description": "Playlists"
+        },
+        {
+            "name": "stream",
+            "description": "Signed, Range-aware audio delivery"
+        },
+        {
+            "name": "meta",
+            "description": "Service health"
+        }
+    ],
+    "paths": {
+        "/health": {
+            "get": {
+                "tags": [
+                    "meta"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "Service is up",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "status": {
+                                            "type": "string",
+                                            "example": "ok"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs": {
+            "get": {
+                "tags": [
+                    "songs"
+                ],
+                "summary": "List songs (cursor pagination + search)",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": 20
+                        },
+                        "description": "Page size."
+                    },
+                    {
+                        "name": "cursor",
+                        "in": "query",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Opaque cursor from a previous response (`nextCursor`). Omit for the first page."
+                    },
+                    {
+                        "name": "q",
+                        "in": "query",
+                        "schema": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 200
+                        },
+                        "description": "Case-insensitive search over title, artist and album."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "One page of songs",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Song"
+                                            }
+                                        },
+                                        "nextCursor": {
+                                            "type": "string",
+                                            "nullable": true,
+                                            "description": "Pass back as `cursor` to fetch the next page; null when exhausted."
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid limit, cursor or search query",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}": {
+            "get": {
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Song detail",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/SongId"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "The song",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/Song"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Song not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/songs/{id}/stream-url": {
+            "get": {
+                "tags": [
+                    "songs"
+                ],
+                "summary": "Mint a short-lived signed stream URL",
+                "description": "Returns a URL the client passes directly to ExoPlayer. The signature is an HMAC-SHA256 over `<songId>:<expiresAt>`; TTL is 300 seconds by default. Mint right before playback rather than caching alongside list responses.",
+                "parameters": [
+                    {
+                        "$ref": "#/components/parameters/SongId"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Signed URL payload",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "url": {
+                                                    "type": "string",
+                                                    "format": "uri",
+                                                    "example": "http://localhost:3000/api/v1/stream/s_neon-tide?expires=1781192262&signature=GJHnZTiw..."
+                                                },
+                                                "expiresAt": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                },
+                                                "mimeType": {
+                                                    "type": "string",
+                                                    "example": "audio/wav"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Song not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/stream/{songId}": {
+            "get": {
+                "tags": [
+                    "stream"
+                ],
+                "summary": "Stream audio bytes (HTTP Range aware)",
+                "description": "Serves the audio object referenced by a signed URL. Single byte ranges are honored (`bytes=N-`, `bytes=N-M`, `bytes=-N`); multi-range or unknown units fall back to the full body, as RFC 9110 permits. With an S3/CloudFront storage provider this endpoint responds 302 to a CDN-signed URL instead of proxying.",
+                "parameters": [
+                    {
+                        "name": "songId",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "s_neon-tide"
+                    },
+                    {
+                        "name": "expires",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Expiry as Unix epoch seconds (part of the signed token)."
+                    },
+                    {
+                        "name": "signature",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "base64url HMAC-SHA256 signature."
+                    },
+                    {
+                        "name": "Range",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "bytes=100000-",
+                        "description": "Standard HTTP byte range; ExoPlayer sends this on seek."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Full body (no Range header sent)",
+                        "headers": {
+                            "Accept-Ranges": {
+                                "schema": {
+                                    "type": "string",
+                                    "example": "bytes"
+                                }
+                            },
+                            "Content-Length": {
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            }
+                        },
+                        "content": {
+                            "audio/wav": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "206": {
+                        "description": "Partial content for a satisfiable Range",
+                        "headers": {
+                            "Content-Range": {
+                                "schema": {
+                                    "type": "string",
+                                    "example": "bytes 100000-1411243/1411244"
+                                }
+                            },
+                            "Content-Length": {
+                                "schema": {
+                                    "type": "integer"
+                                }
+                            },
+                            "Accept-Ranges": {
+                                "schema": {
+                                    "type": "string",
+                                    "example": "bytes"
+                                }
+                            }
+                        },
+                        "content": {
+                            "audio/wav": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
+                                }
+                            }
+                        }
+                    },
+                    "302": {
+                        "description": "Redirect to a CDN-signed URL (only with an external storage provider)"
+                    },
+                    "403": {
+                        "description": "Invalid signature",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Song or audio object not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "410": {
+                        "description": "Stream URL has expired",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "416": {
+                        "description": "Requested range not satisfiable",
+                        "headers": {
+                            "Content-Range": {
+                                "schema": {
+                                    "type": "string",
+                                    "example": "bytes */1411244"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/playlists": {
+            "get": {
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "List playlists",
+                "responses": {
+                    "200": {
+                        "description": "All playlists (without songs)",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Playlist"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/playlists/{id}": {
+            "get": {
+                "tags": [
+                    "playlists"
+                ],
+                "summary": "Playlist detail with ordered songs",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "p_late-night-drive"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Playlist with its songs in track order",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PlaylistWithSongs"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Playlist not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "parameters": {
+            "SongId": {
+                "name": "id",
+                "in": "path",
+                "required": true,
+                "schema": {
+                    "type": "string"
+                },
+                "example": "s_neon-tide"
+            }
+        },
+        "schemas": {
+            "Song": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "s_neon-tide"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Neon Tide"
+                    },
+                    "artist": {
+                        "type": "string",
+                        "example": "Aurora Drift"
+                    },
+                    "album": {
+                        "type": "string",
+                        "nullable": true,
+                        "example": "City Lights"
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "example": 32000
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "example": "audio/wav"
+                    },
+                    "sizeBytes": {
+                        "type": "integer",
+                        "example": 1411244
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "Playlist": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "p_late-night-drive"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Late Night Drive"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                }
+            },
+            "PlaylistWithSongs": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Playlist"
+                    },
+                    {
+                        "type": "object",
+                        "properties": {
+                            "songs": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/Song"
+                                }
+                            }
+                        }
+                    }
+                ]
+            },
+            "Error": {
+                "type": "object",
+                "properties": {
+                    "error": {
+                        "type": "object",
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                                "example": "NOT_FOUND"
+                            },
+                            "message": {
+                                "type": "string",
+                                "example": "Song not found"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
