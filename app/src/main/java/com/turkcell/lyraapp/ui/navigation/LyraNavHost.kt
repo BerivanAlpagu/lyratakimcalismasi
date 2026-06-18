@@ -24,6 +24,7 @@ import com.turkcell.lyraapp.ui.auth.register.RegisterRoute
 import com.turkcell.lyraapp.ui.home.HomeRoute
 import com.turkcell.lyraapp.ui.player.PlayerRoute
 import com.turkcell.lyraapp.ui.player.PlayerViewModel
+import com.turkcell.lyraapp.ui.search.SearchRoute
 
 /**
  * Uygulamanın iskelet navigasyon yapısı.
@@ -97,7 +98,13 @@ fun LyraNavHost(
                     },
                 )
             }
-            composable(LyraDestination.Search.route) { PlaceholderScreen(title = "Ara") }
+            composable(LyraDestination.Search.route) {
+                SearchRoute(
+                    onSongClick = { songId, title, artist ->
+                        navController.navigate(playerRoute(songId, title, artist))
+                    }
+                )
+            }
             composable(LyraDestination.Library.route) { PlaceholderScreen(title = "Kütüphane") }
             composable(LyraDestination.Favorites.route) { PlaceholderScreen(title = "Favoriler") }
             composable(LyraDestination.Profile.route) { PlaceholderScreen(title = "Profil") }
