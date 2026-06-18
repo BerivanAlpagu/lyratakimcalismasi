@@ -100,8 +100,22 @@ fun LyraNavHost(
             }
             composable(LyraDestination.Search.route) { PlaceholderScreen(title = "Ara") }
             composable(LyraDestination.Library.route) { LibraryRoute() }
-            composable(LyraDestination.Favorites.route) { PlaceholderScreen(title = "Favoriler") }
-            composable(LyraDestination.Profile.route) { PlaceholderScreen(title = "Profil") }
+            composable(LyraDestination.Favorites.route) { 
+                com.turkcell.lyraapp.ui.favorites.FavoritesRoute(
+                    onShowSnackbar = {}
+                )
+            }
+            composable(LyraDestination.Profile.route) { 
+                com.turkcell.lyraapp.ui.profile.ProfileRoute(
+                    onShowSnackbar = {},
+                    onNavigateToLogin = {
+                        navController.navigate(LyraDestination.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
 
             composable(
                 route = PLAYER_ROUTE_PATTERN,
