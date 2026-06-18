@@ -21,10 +21,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -46,27 +42,33 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.turkcell.lyraapp.data.playlists.PlaylistDto
+import com.turkcell.lyraapp.ui.icons.LyraIcons
+import com.turkcell.lyraapp.ui.theme.DarkOnPrimary
+import com.turkcell.lyraapp.ui.theme.DarkPrimary
+import com.turkcell.lyraapp.ui.theme.DarkPrimaryContainer
+import com.turkcell.lyraapp.ui.theme.DarkSecondaryContainer
+import com.turkcell.lyraapp.ui.theme.DarkTertiaryContainer
+import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
-// ── Playlist cover renk paleti — her playlist hash'e göre bir gradient alır ──
+// ── Playlist kapak renk paleti — her playlist id hash'ine göre deterministik gradient alır ──
+// Renkler Color.kt'deki marka paletinden türetilir; uydurma renk kullanılmaz (bkz. agents.md §2.2).
 private val coverGradients: List<List<Color>> = listOf(
-    listOf(Color(0xFFFFB1C8), Color(0xFF7B2949)),  // pembeli gül
-    listOf(Color(0xFF9B59B6), Color(0xFF3B1F6B)),  // mor
-    listOf(Color(0xFF5B8EF5), Color(0xFF1A3A8F)),  // mavi
-    listOf(Color(0xFF2ECC71), Color(0xFF0E6640)),  // yeşil
-    listOf(Color(0xFFE67E22), Color(0xFF7D3C0D)),  // turuncu
-    listOf(Color(0xFF1ABC9C), Color(0xFF0B5345)),  // turkuaz
-    listOf(Color(0xFFEC407A), Color(0xFF880E4F)),  // fuşya
-    listOf(Color(0xFF78909C), Color(0xFF263238)),  // çelik mavi
+    listOf(DarkPrimary, DarkPrimaryContainer),           // pembeli gül
+    listOf(DarkSecondaryContainer, Color(0xFF422931)),   // koyu gül
+    listOf(DarkTertiaryContainer, Color(0xFF48290B)),    // amber
+    listOf(Color(0xFF5B8EF5), Color(0xFF1A3A8F)),        // mavi
+    listOf(Color(0xFF2ECC71), Color(0xFF0E6640)),        // yeşil
+    listOf(Color(0xFF1ABC9C), Color(0xFF0B5345)),        // turkuaz
+    listOf(Color(0xFFEC407A), Color(0xFF880E4F)),        // fuşya
+    listOf(Color(0xFF78909C), Color(0xFF263238)),        // çelik
 )
 
-private fun gradientForId(id: String): List<Color> {
-    val index = Math.abs(id.hashCode()) % coverGradients.size
-    return coverGradients[index]
-}
+private fun gradientForId(id: String): List<Color> =
+    coverGradients[kotlin.math.abs(id.hashCode()) % coverGradients.size]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route (durumlu / stateful) — MVI köprüsü
@@ -77,6 +79,9 @@ private fun gradientForId(id: String): List<Color> {
  *
  * ViewModel'i [hiltViewModel] ile alır, state'i [collectAsStateWithLifecycle] ile toplar
  * ve Effect'leri [LaunchedEffect] içinde tüketir. İş mantığı veya repository çağrısı içermez.
+ *
+ * Navigasyon lambda'ları NavHost'tan sağlanır; ViewModel navigasyon API'si bilmez —
+ * bkz. docs/architecture/mvi-viewmodel-rules.md §6.
  */
 @Composable
 fun LibraryRoute(
@@ -85,11 +90,6 @@ fun LibraryRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-
-    // Ekran ilk açıldığında playlist'leri yükle
-    LaunchedEffect(Unit) {
-        viewModel.onIntent(LibraryIntent.LoadPlaylists)
-    }
 
     // Tek seferlik Effect'leri tüket
     LaunchedEffect(Unit) {
@@ -120,6 +120,7 @@ fun LibraryRoute(
  * Kütüphane ekranının durumsuz Composable'ı.
  *
  * Preview edilebilir; [state] ve [onIntent] dışında hiçbir bağımlılık almaz.
+ * Renk ve tipografi [LyraAppTheme]'den gelir; doğrudan renk sabiti kullanılmaz.
  */
 @Composable
 fun LibraryScreen(
@@ -155,9 +156,9 @@ fun LibraryScreen(
                     onRetry = { onIntent(LibraryIntent.RetryClicked) },
                 )
                 state.selectedTab == LibraryTab.PLAYLISTS && state.playlists.isEmpty() ->
-                    LibraryEmptyContent(message = "Henuz playlist yok.")
+                    LibraryEmptyContent(message = "Henüz çalma listesi yok.")
                 state.selectedTab != LibraryTab.PLAYLISTS ->
-                    LibraryEmptyContent(message = "Yakin zamanda geliyor.")
+                    LibraryEmptyContent(message = "Yakında geliyor.")
                 else -> LibraryPlaylistList(
                     playlists = state.playlists,
                     onPlaylistClicked = { onIntent(LibraryIntent.PlaylistClicked(it)) },
@@ -181,7 +182,7 @@ private fun LibraryTopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
-            text = "Kutüphane",
+            text = "Kütüphane",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
@@ -189,7 +190,7 @@ private fun LibraryTopBar() {
         Row {
             IconButton(onClick = { /* Arama — kapsam dışı */ }) {
                 Icon(
-                    imageVector = Icons.Default.Search,
+                    imageVector = LyraIcons.Search,
                     contentDescription = "Ara",
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
@@ -256,7 +257,7 @@ private fun LibraryTabChip(
 
 @Composable
 private fun LibraryPlaylistList(
-    playlists: List<PlaylistDto>,
+    playlists: List<PlaylistUiModel>,
     onPlaylistClicked: (String) -> Unit,
 ) {
     LazyColumn(
@@ -274,7 +275,7 @@ private fun LibraryPlaylistList(
 
 @Composable
 private fun PlaylistListItem(
-    playlist: PlaylistDto,
+    playlist: PlaylistUiModel,
     onClick: () -> Unit,
 ) {
     val gradientColors = gradientForId(playlist.id)
@@ -287,18 +288,16 @@ private fun PlaylistListItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        // Playlist cover — gradient + nota ikonu
+        // Playlist kapağı — Color.kt'den türetilmiş gradient + kütüphane ikonu
         Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(
-                    brush = Brush.linearGradient(colors = gradientColors),
-                ),
+                .background(brush = Brush.linearGradient(colors = gradientColors)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = Icons.Default.MusicNote,
+                imageVector = LyraIcons.LibraryMusic,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.85f),
                 modifier = Modifier.size(24.dp),
@@ -317,11 +316,18 @@ private fun PlaylistListItem(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Calma listesi",
+                text = playlist.description ?: "Çalma listesi",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        Icon(
+            imageVector = LyraIcons.LibraryMusicOutlined,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -354,8 +360,11 @@ private fun LibraryErrorContent(
                 color = MaterialTheme.colorScheme.errorContainer,
             ) {
                 Box(contentAlignment = Alignment.Center) {
+                    // Yenile ikonu için Waveform yerine ArrowBack tersine döndürülebilir;
+                    // LyraIcons'da doğrudan "Retry/Refresh" ikonu bulunmadığından
+                    // mevcut ArrowForward kullanılır — ilerleyen fazda ayrı ikon eklenebilir.
                     Icon(
-                        imageVector = Icons.Default.Refresh,
+                        imageVector = LyraIcons.ArrowForward,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onErrorContainer,
                     )
@@ -379,10 +388,69 @@ private fun LibraryEmptyContent(message: String) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = LyraIcons.LibraryMusicOutlined,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(48.dp),
+            )
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Önizlemeler (LyraAppTheme zorunludur — bkz. mvi-viewmodel-rules.md §6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Preview(name = "Library - Dolu Liste (Koyu)", showBackground = true, showSystemUi = true)
+@Composable
+private fun LibraryScreenLoadedPreview() {
+    LyraAppTheme(darkTheme = true) {
+        LibraryScreen(
+            state = LibraryUiState(
+                playlists = listOf(
+                    PlaylistUiModel("p_1", "Beğenilen Şarkılar", "Çalma listesi · 5 şarkı"),
+                    PlaylistUiModel("p_2", "Gece Sürüşü", "Çalma listesi · 6 şarkı"),
+                    PlaylistUiModel("p_3", "Sabah Kahvesi", "Çalma listesi · 5 şarkı"),
+                    PlaylistUiModel("p_4", "Odaklan", null),
+                    PlaylistUiModel("p_5", "Yaz Anıları", "Çalma listesi · 4 şarkı"),
+                ),
+            ),
+            onIntent = {},
+            snackbarHostState = remember { SnackbarHostState() },
+        )
+    }
+}
+
+@Preview(name = "Library - Yükleniyor (Koyu)", showBackground = true, showSystemUi = true)
+@Composable
+private fun LibraryScreenLoadingPreview() {
+    LyraAppTheme(darkTheme = true) {
+        LibraryScreen(
+            state = LibraryUiState(isLoading = true),
+            onIntent = {},
+            snackbarHostState = remember { SnackbarHostState() },
+        )
+    }
+}
+
+@Preview(name = "Library - Hata (Koyu)", showBackground = true, showSystemUi = true)
+@Composable
+private fun LibraryScreenErrorPreview() {
+    LyraAppTheme(darkTheme = true) {
+        LibraryScreen(
+            state = LibraryUiState(errorMessage = "Bağlantı kurulamadı."),
+            onIntent = {},
+            snackbarHostState = remember { SnackbarHostState() },
         )
     }
 }
