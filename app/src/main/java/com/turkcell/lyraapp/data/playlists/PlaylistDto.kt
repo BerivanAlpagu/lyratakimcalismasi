@@ -4,21 +4,22 @@ import com.turkcell.lyraapp.data.songs.SongDto
 import kotlinx.serialization.Serializable
 
 /**
- * `GET /api/v1/playlists` yanıtının zarfı; [data] playlist listesini taşır.
+ * `GET /api/v1/playlists` yanıtının zarfı; asıl liste [data] içindedir.
  *
- * OpenAPI şeması: `components/schemas/Playlist` listesi.
+ * API her zaman songs alanı olmayan özet nesneler döner; detay için
+ * bkz. [PlaylistWithSongsResponseDto].
  */
 @Serializable
-data class PlaylistsPageDto(
+data class PlaylistsResponseDto(
     val data: List<PlaylistDto> = emptyList(),
 )
 
 /**
- * Tekil playlist'in API gösterimi (şarkısız).
- *
  * OpenAPI `Playlist` şemasının istemci tarafı karşılığı.
- * [description] ve [createdAt] opsiyoneldir; `Json { ignoreUnknownKeys }` ile
- * bilinmeyen alanlar yok sayılır.
+ *
+ * Liste görünümünde yalnızca [id] ve [name] zorunludur; [description] ve
+ * [createdAt] varsa gösterilir. Bilinmeyen alanlar `Json { ignoreUnknownKeys }`
+ * ile yok sayılır.
  */
 @Serializable
 data class PlaylistDto(
@@ -29,21 +30,18 @@ data class PlaylistDto(
 )
 
 /**
- * `GET /api/v1/playlists/{id}` yanıtının zarfı.
- *
- * OpenAPI şeması: `PlaylistWithSongs`.
+ * `GET /api/v1/playlists/{id}` yanıtının zarfı; yük [data] içindedir.
  */
 @Serializable
-data class PlaylistDetailEnvelopeDto(
+data class PlaylistWithSongsResponseDto(
     val data: PlaylistWithSongsDto,
 )
 
 /**
- * Şarkı listesi dahil playlist detayı.
- *
  * OpenAPI `PlaylistWithSongs` şemasının istemci tarafı karşılığı.
- * `allOf` yapısı Kotlin'de düz bir sınıfla modellenir; tekrar eden alanlar inline edilir.
- * [songs] sunucu tarafından track sırasına göre sıralanmış gelir.
+ *
+ * [songs] şarkıları parça sırasında içerir. [SongDto] tipi `data/songs`
+ * paketinden yeniden kullanılır; ayrı tanım yapılmaz (bkz. agents.md §2.2).
  */
 @Serializable
 data class PlaylistWithSongsDto(

@@ -15,13 +15,13 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Kütüphane ekranının MVI ViewModel'i.
+ * Library (Kütüphane) ekranının MVI ViewModel'i.
  *
  * Tek giriş noktası [onIntent]'tir. Durum [uiState] üzerinden gözlemlenir; tek seferlik
  * olaylar [effect] kanalından akar.
  *
- * Kural referansı: mvi-viewmodel-rules.md §2-6.
- * Referans implementasyon: LoginViewModel.
+ * ViewModel içinde Android/Compose/Context bağımlılığı yoktur —
+ * bkz. docs/architecture/mvi-viewmodel-rules.md §3.
  */
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -34,58 +34,49 @@ class LibraryViewModel @Inject constructor(
     private val _effect = Channel<LibraryEffect>(Channel.BUFFERED)
     val effect: Flow<LibraryEffect> = _effect.receiveAsFlow()
 
-    /**
-     * Tek giriş noktası. Tüm [LibraryIntent] dalları exhaustive olarak ele alınır.
-     */
+    init {
+        onIntent(LibraryIntent.LoadPlaylists)
+    }
+
     fun onIntent(intent: LibraryIntent) {
         when (intent) {
             is LibraryIntent.LoadPlaylists -> loadPlaylists()
-            is LibraryIntent.TabSelected -> onTabSelected(intent.tab)
-            is LibraryIntent.PlaylistClicked -> onPlaylistClicked(intent.playlistId)
             is LibraryIntent.RetryClicked -> loadPlaylists()
+            is LibraryIntent.PlaylistClicked -> navigateToDetail(intent.playlistId)
         }
     }
 
-    /**
-     * Playlist listesini API'dan çeker. Çift çağrıya karşı [isLoading] ile korunur.
-     */
     private fun loadPlaylists() {
-        val state = _uiState.value
-        if (state.isLoading) return
+        if (_uiState.value.isLoading) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            libraryRepository.getPlaylists()
-                .onSuccess { playlists ->
-                    _uiState.update { it.copy(isLoading = false, playlists = playlists) }
+            val result = libraryRepository.getPlaylists()
+
+            result
+                .onSuccess { dtos ->
+                    val uiModels = dtos.map { dto ->
+                        PlaylistUiModel(
+                            id = dto.id,
+                            name = dto.name,
+                            description = dto.description,
+                        )
+                    }
+                    _uiState.update { it.copy(isLoading = false, playlists = uiModels) }
                 }
                 .onFailure { error ->
-                    // State'e yazilir → LibraryScreen'deki inline hata / retry ekrani gorünür.
-                    // Effect ayrica gönderilmez; tek seferlik Snackbar yerine kalici
-                    // hata ekrani (RetryClicked ile sifirlanir) daha iyi UX saglar.
-                    val message = error.message ?: "Playlist listesi yuklenemedi."
-                    _uiState.update { it.copy(isLoading = false, errorMessage = message) }
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effect.send(
+                        LibraryEffect.ShowError(
+                            error.message ?: "Çalma listeleri yüklenemedi."
+                        )
+                    )
                 }
         }
     }
 
-    /**
-     * Sekme seçimini state'e yansıtır. Veri çekme bu fazda yalnızca PLAYLISTS sekmesinde
-     * gerçekleşir; diğer sekmeler boş durum gösterir.
-     */
-    private fun onTabSelected(tab: LibraryTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
-        if (tab == LibraryTab.PLAYLISTS && _uiState.value.playlists.isEmpty()) {
-            loadPlaylists()
-        }
-    }
-
-    /**
-     * Playlist tıklanmasını detay navigasyonu Effect'ine dönüştürür.
-     * ViewModel, navigasyon API'si bilmez (bkz. mvi-viewmodel-rules.md §3-6).
-     */
-    private fun onPlaylistClicked(playlistId: String) {
+    private fun navigateToDetail(playlistId: String) {
         viewModelScope.launch {
             _effect.send(LibraryEffect.NavigateToPlaylistDetail(playlistId))
         }

@@ -4,31 +4,31 @@ import retrofit2.http.GET
 import retrofit2.http.Path
 
 /**
- * Playlist API uç noktaları.
+ * Streaming API'nin çalma listesi uç noktaları için Retrofit arayüzü.
  *
- * OpenAPI rotaları (bkz. docs/api/openapi.json):
- *  - `GET /api/v1/playlists`        → tüm playlist'leri listeler (şarkısız)
- *  - `GET /api/v1/playlists/{id}`   → tek playlist detayı (şarkılarıyla birlikte)
+ * Base URL [com.turkcell.lyraapp.data.network.NetworkModule] tarafından sağlanır; buradaki
+ * yollar ona görelidir. API üretimi [com.turkcell.lyraapp.data.network.NetworkModule.providePlaylists api]
+ * üzerinden yapılır.
  *
- * Retrofit bu interface'i `NetworkModule` üzerinden sağlanan [retrofit2.Retrofit] instance'ı
- * ile oluşturur; [LibraryModule] içinde `@Provides` ile bağlanır.
+ * Karar geçmişi için bkz. docs/decisions.md — Library Ekranı.
  */
 interface PlaylistsApi {
 
     /**
-     * Tüm playlist'leri şarkısız olarak döndürür.
+     * Tüm çalma listelerini özet biçimde (şarkısız) döndürür.
      *
-     * Başarı durumunda [PlaylistsPageDto.data] dolmuş gelir; hata durumunda
-     * Retrofit exception fırlatır — çağıran [runCatching] ile sarar.
+     * Yanıt: `{ data: Playlist[] }` — bkz. OpenAPI `GET /api/v1/playlists`.
      */
     @GET("api/v1/playlists")
-    suspend fun getPlaylists(): PlaylistsPageDto
+    suspend fun getPlaylists(): PlaylistsResponseDto
 
     /**
-     * Verilen [id]'ye sahip playlist'i şarkılarıyla birlikte döndürür.
+     * Belirtilen çalma listesini şarkı sırasıyla birlikte döndürür.
      *
-     * 404 durumunda Retrofit `HttpException` fırlatır.
+     * Yanıt: `{ data: PlaylistWithSongs }` — bkz. OpenAPI `GET /api/v1/playlists/{id}`.
+     *
+     * @param id Çalma listesi kimliği (örn. `p_late-night-drive`).
      */
     @GET("api/v1/playlists/{id}")
-    suspend fun getPlaylistDetail(@Path("id") id: String): PlaylistDetailEnvelopeDto
+    suspend fun getPlaylistById(@Path("id") id: String): PlaylistWithSongsResponseDto
 }
