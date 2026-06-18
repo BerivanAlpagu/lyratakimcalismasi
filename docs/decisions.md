@@ -134,3 +134,26 @@
 
 - Çalma (playback): Bu faz **kapsam dışı**. Tıklama/oynatma (Media3/ExoPlayer, iki adımlı
   `stream-url` akışı) sonraki faza bırakılmıştır; şarkı satırları şu an davranışsızdır.
+
+
+### Kütüphane (Library) Feature — Playlist API Entegrasyonu
+
+- Karar: Kütüphane ekranı `GET /api/v1/playlists` ile beslenir; `Fake` repository kullanılmaz.
+
+- Tarih: 18.06.2026
+
+- Uygulama:
+  - `data/playlists/PlaylistDto.kt` — OpenAPI `Playlist` + `PlaylistWithSongs` şemalarından türetildi.
+  - `data/playlists/PlaylistsApi.kt` — Retrofit interface (iki endpoint).
+  - `data/library/LibraryRepository.kt` — interface; `DefaultLibraryRepository` gerçek implementasyon.
+  - `di/LibraryModule.kt` — `@Binds` bağlaması + `@Provides PlaylistsApi`. `NetworkModule.kt`'ye
+    dokunulmadı; böylece Kişi A/C branch'leriyle merge çakışması sıfırlandı.
+
+- Playlist detail (`GET /api/v1/playlists/{id}`): Repository hazır; UI'da bu fazda Snackbar ile
+  karşılanıyor. Detay ekranı sonraki faza bırakılmıştır.
+
+- Sekme yapısı: Sanatçılar ve Albümler sekmeleri bu fazda backend desteği olmadığından "Yakında"
+  boş durumu gösterir; ileride ayrı endpoint'e bağlanabilir.
+
+- Cover renkleri: Playlist API'da görsel bilgisi yok. Playlist `id`'sinden deterministik gradyan
+  renk çifti türetilir (HomeRepository'deki şarkı renklerine benzer yaklaşım).
