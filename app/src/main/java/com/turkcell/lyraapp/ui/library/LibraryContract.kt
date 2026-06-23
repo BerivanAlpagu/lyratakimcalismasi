@@ -1,12 +1,12 @@
 package com.turkcell.lyraapp.ui.library
 
+import com.turkcell.lyraapp.data.playlists.PlaylistDto
+
 /**
- * Library (Kütüphane) ekranının MVI sözleşmesi: State, Intent ve Effect tek dosyada.
+ * Kütüphane ekranının MVI sözleşmesi: State (durum), Intent (kullanıcı niyeti) ve
+ * Effect (tek seferlik olay) tek dosyada toplanmıştır.
  *
  * Referans: [com.turkcell.lyraapp.ui.auth.login.LoginContract] (bkz. mvi-contracts.md).
- *
- * NOT: Veri katmanı tipi olan [com.turkcell.lyraapp.data.playlists.PlaylistDto] bu dosyaya
- * sızdırılmaz; UI katmanı yalnızca [PlaylistUiModel]'i bilir. Dönüşüm ViewModel'de yapılır.
  */
 
 /**
@@ -15,33 +15,21 @@ package com.turkcell.lyraapp.ui.library
  * ARTISTS ve ALBUMS sekmeleri bu fazda backend desteği olmadığından boş durum gösterir.
  */
 enum class LibraryTab(val label: String) {
-    PLAYLISTS("Çalma listeleri"),
-    ARTISTS("Sanatçılar"),
-    ALBUMS("Albümler"),
+    PLAYLISTS("Calma listeleri"),
+    ARTISTS("Sanatcilar"),
+    ALBUMS("Albumler"),
 }
-
-/**
- * Çalma listesi öğesinin UI katmanına ait temsili.
- *
- * DTO'dan (veri katmanı) bağımsızdır; ViewModel bu dönüşümü yapar.
- * Ekran DTO bilmez — bkz. agents.md §2.4 ve mvi-contracts.md §2.
- */
-data class PlaylistUiModel(
-    val id: String,
-    val name: String,
-    val description: String?,
-)
 
 /**
  * Ekranın gözlemlenebilir tüm durumu. Tek bir immutable kaynak (single source of truth).
  *
  * [isLoading] ağ isteği devam ederken `true`'dur.
  * [playlists] yalnızca [selectedTab] == [LibraryTab.PLAYLISTS] olduğunda anlamlıdır.
- * [errorMessage] `null` değilken inline hata durumu gösterilir; Retry ile sıfırlanır.
+ * [errorMessage] `null` değilken hata banner'ı gösterilir.
  */
 data class LibraryUiState(
     val isLoading: Boolean = false,
-    val playlists: List<PlaylistUiModel> = emptyList(),
+    val playlists: List<PlaylistDto> = emptyList(),
     val errorMessage: String? = null,
     val selectedTab: LibraryTab = LibraryTab.PLAYLISTS,
 )
@@ -51,7 +39,7 @@ data class LibraryUiState(
  */
 sealed interface LibraryIntent {
 
-    /** Ekran ilk açıldığında ya da yenileme istendiğinde yayımlanır. */
+    /** Ekran ilk açıldığında ya da "Yenile" tıklandığında yayımlanır. */
     data object LoadPlaylists : LibraryIntent
 
     /** Üst sekme çubuğunda sekme değiştirildiğinde yayımlanır. */
@@ -65,8 +53,8 @@ sealed interface LibraryIntent {
 }
 
 /**
- * Tek seferlik (one-shot) olaylar: navigasyon, snackbar vb.
- * State içinde tutulmaz; konfigürasyon değişiminde tekrar tetiklenmez.
+ * Tek seferlik (one-shot) olaylar: navigasyon, snackbar vb. State içinde tutulmaz,
+ * böylece konfigürasyon değişiminde tekrar tetiklenmez.
  */
 sealed interface LibraryEffect {
 

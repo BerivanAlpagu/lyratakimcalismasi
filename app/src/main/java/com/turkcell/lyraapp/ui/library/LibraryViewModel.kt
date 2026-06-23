@@ -22,9 +22,6 @@ import javax.inject.Inject
  *
  * Kural referansı: mvi-viewmodel-rules.md §2-6.
  * Referans implementasyon: LoginViewModel.
- *
- * ViewModel içinde Android/Compose/Context bağımlılığı yoktur.
- * DTO → UiModel dönüşümü burada yapılır; UI katmanı [PlaylistUiModel] bilir, DTO bilmez.
  */
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
@@ -36,10 +33,6 @@ class LibraryViewModel @Inject constructor(
 
     private val _effect = Channel<LibraryEffect>(Channel.BUFFERED)
     val effect: Flow<LibraryEffect> = _effect.receiveAsFlow()
-
-    init {
-        onIntent(LibraryIntent.LoadPlaylists)
-    }
 
     /**
      * Tek giriş noktası. Tüm [LibraryIntent] dalları exhaustive olarak ele alınır.
@@ -55,31 +48,23 @@ class LibraryViewModel @Inject constructor(
 
     /**
      * Playlist listesini API'dan çeker. Çift çağrıya karşı [isLoading] ile korunur.
-     *
-     * DTO → [PlaylistUiModel] dönüşümü burada yapılır; ekran DTO bilmez.
      */
     private fun loadPlaylists() {
-        if (_uiState.value.isLoading) return
+        val state = _uiState.value
+        if (state.isLoading) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
             libraryRepository.getPlaylists()
-                .onSuccess { dtos ->
-                    val uiModels = dtos.map { dto ->
-                        PlaylistUiModel(
-                            id = dto.id,
-                            name = dto.name,
-                            description = dto.description,
-                        )
-                    }
-                    _uiState.update { it.copy(isLoading = false, playlists = uiModels) }
+                .onSuccess { playlists ->
+                    _uiState.update { it.copy(isLoading = false, playlists = playlists) }
                 }
                 .onFailure { error ->
-                    // Hata state'e yazılır → LibraryScreen inline hata / retry gösterir.
-                    // Effect gönderilmez: kalıcı hata ekranı (RetryClicked ile sıfırlanır)
-                    // tek seferlik Snackbar'dan daha iyi UX sağlar.
-                    val message = error.message ?: "Çalma listeleri yüklenemedi."
+                    // State'e yazilir → LibraryScreen'deki inline hata / retry ekrani gorünür.
+                    // Effect ayrica gönderilmez; tek seferlik Snackbar yerine kalici
+                    // hata ekrani (RetryClicked ile sifirlanir) daha iyi UX saglar.
+                    val message = error.message ?: "Playlist listesi yuklenemedi."
                     _uiState.update { it.copy(isLoading = false, errorMessage = message) }
                 }
         }

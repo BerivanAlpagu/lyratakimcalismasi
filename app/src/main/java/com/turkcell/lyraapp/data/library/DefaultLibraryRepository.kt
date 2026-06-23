@@ -2,30 +2,29 @@ package com.turkcell.lyraapp.data.library
 
 import com.turkcell.lyraapp.data.playlists.PlaylistDto
 import com.turkcell.lyraapp.data.playlists.PlaylistsApi
-import com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto
 import javax.inject.Inject
 
 /**
- * [LibraryRepository] arayüzünün Retrofit tabanlı gerçek implementasyonu.
+ * [LibraryRepository] arayüzünün gerçek ağ implementasyonu.
  *
- * Tüm ağ çağrıları [runCatching] ile sarılır; [PlaylistsApi] exception fırlattığında
- * [Result.Failure]'a dönüştürülür. ViewModel hiçbir zaman try/catch yazmak zorunda kalmaz.
+ * Tek bağımlılığı [PlaylistsApi]'dir; [com.turkcell.lyraapp.data.network.NetworkModule]
+ * tarafından sağlanır. Tüm ağ hataları [runCatching] ile yakalanıp [Result.failure]'a
+ * dönüştürülür; böylece ViewModel'e ham istisna sızmaz.
  *
- * [PlaylistsApi] bağımlılığı [di.LibraryModule] tarafından sağlanır.
+ * DI bağlaması: [com.turkcell.lyraapp.di.LibraryModule].
  */
 class DefaultLibraryRepository @Inject constructor(
-    private val api: PlaylistsApi,
+    private val playlistsApi: PlaylistsApi,
 ) : LibraryRepository {
 
     /**
-     * `GET /api/v1/playlists` — şarkısız playlist listesi.
+     * `GET /api/v1/playlists` çağrısını yapar ve sonucu [Result] ile sarar.
+     *
+     * Ağ erişilemez, zaman aşımı veya JSON ayrıştırma hatası olursa
+     * [Result.failure] döner; ViewModel hata mesajını kullanıcıya iletir.
      */
     override suspend fun getPlaylists(): Result<List<PlaylistDto>> =
-        runCatching { api.getPlaylists().data }
-
-    /**
-     * `GET /api/v1/playlists/{id}` — şarkılı playlist detayı.
-     */
-    override suspend fun getPlaylistDetail(playlistId: String): Result<PlaylistWithSongsDto> =
-        runCatching { api.getPlaylistDetail(playlistId).data }
+        runCatching {
+            playlistsApi.getPlaylists().data
+        }
 }

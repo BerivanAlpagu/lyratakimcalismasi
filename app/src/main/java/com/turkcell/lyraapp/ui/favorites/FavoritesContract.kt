@@ -1,0 +1,22 @@
+package com.turkcell.lyraapp.ui.favorites
+
+data class FavoriteSongUiModel(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val duration: String
+)
+
+data class FavoritesUiState(
+    val favorites: List<FavoriteSongUiModel> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
+sealed interface FavoritesIntent {
+    data object LoadFavorites : FavoritesIntent
+}
+
+sealed interface FavoritesEffect {
+    data class ShowError(val message: String) : FavoritesEffect
+}
