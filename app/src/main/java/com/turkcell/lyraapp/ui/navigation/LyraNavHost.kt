@@ -135,8 +135,8 @@ fun LyraNavHost(
  */
 private const val PLAYER_ROUTE_PATTERN =
     "player/{${PlayerViewModel.ARG_SONG_ID}}?" +
-        "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
-        "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
+            "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
+            "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
 
 /**
  * Bir şarkı için gerçek oynatıcı yolunu üretir. Tüm bileşenler URL-encode edilir; böylece
@@ -144,8 +144,8 @@ private const val PLAYER_ROUTE_PATTERN =
  */
 private fun playerRoute(songId: String, title: String, artist: String): String =
     "player/${Uri.encode(songId)}?" +
-        "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
-        "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
+            "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
+            "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
 
 /**
  * Alt çubuk sekmesine standart desenle geçiş yapar: back stack'te sekme kopyası birikmez
