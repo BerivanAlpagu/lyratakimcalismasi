@@ -22,6 +22,7 @@ import androidx.navigation.navArgument
 import com.turkcell.lyraapp.ui.auth.login.LoginRoute
 import com.turkcell.lyraapp.ui.auth.register.RegisterRoute
 import com.turkcell.lyraapp.ui.home.HomeRoute
+import com.turkcell.lyraapp.ui.library.LibraryRoute
 import com.turkcell.lyraapp.ui.player.PlayerRoute
 import com.turkcell.lyraapp.ui.player.PlayerViewModel
 import com.turkcell.lyraapp.ui.search.SearchRoute
@@ -98,16 +99,24 @@ fun LyraNavHost(
                     },
                 )
             }
-            composable(LyraDestination.Search.route) {
-                SearchRoute(
-                    onSongClick = { songId, title, artist ->
-                        navController.navigate(playerRoute(songId, title, artist))
+            composable(LyraDestination.Search.route) { PlaceholderScreen(title = "Ara") }
+            composable(LyraDestination.Library.route) { LibraryRoute() }
+            composable(LyraDestination.Favorites.route) {
+                com.turkcell.lyraapp.ui.favorites.FavoritesRoute(
+                    onShowSnackbar = {}
+                )
+            }
+            composable(LyraDestination.Profile.route) {
+                com.turkcell.lyraapp.ui.profile.ProfileRoute(
+                    onShowSnackbar = {},
+                    onNavigateToLogin = {
+                        navController.navigate(LyraDestination.Login.route) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
                     }
                 )
             }
-            composable(LyraDestination.Library.route) { PlaceholderScreen(title = "Kütüphane") }
-            composable(LyraDestination.Favorites.route) { PlaceholderScreen(title = "Favoriler") }
-            composable(LyraDestination.Profile.route) { PlaceholderScreen(title = "Profil") }
 
             composable(
                 route = PLAYER_ROUTE_PATTERN,
@@ -135,8 +144,8 @@ fun LyraNavHost(
  */
 private const val PLAYER_ROUTE_PATTERN =
     "player/{${PlayerViewModel.ARG_SONG_ID}}?" +
-            "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
-            "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
+        "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
+        "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
 
 /**
  * Bir şarkı için gerçek oynatıcı yolunu üretir. Tüm bileşenler URL-encode edilir; böylece
@@ -144,8 +153,8 @@ private const val PLAYER_ROUTE_PATTERN =
  */
 private fun playerRoute(songId: String, title: String, artist: String): String =
     "player/${Uri.encode(songId)}?" +
-            "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
-            "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
+        "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
+        "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
 
 /**
  * Alt çubuk sekmesine standart desenle geçiş yapar: back stack'te sekme kopyası birikmez

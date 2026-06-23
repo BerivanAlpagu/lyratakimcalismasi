@@ -134,3 +134,29 @@
 
 - Çalma (playback): Bu faz **kapsam dışı**. Tıklama/oynatma (Media3/ExoPlayer, iki adımlı
   `stream-url` akışı) sonraki faza bırakılmıştır; şarkı satırları şu an davranışsızdır.
+
+---
+
+### Library (Kütüphane) Ekranı
+
+- Karar: `GET /api/v1/playlists` ile beslenen gerçek ağ implementasyonu. Kapak resmi API'da bulunmadığından playlist kimliğinden deterministik HSL gradient üretilir.
+
+- Son Güncelleme Tarihi: 18.06.2026
+
+- Dosya Dökümü:
+  - `data/playlists/PlaylistDto.kt` — OpenAPI `Playlist` + `PlaylistWithSongs` DTO'ları ve zarfları.
+  - `data/playlists/PlaylistsApi.kt` — Retrofit interface (`GET /api/v1/playlists`, `GET /api/v1/playlists/{id}`).
+  - `data/library/LibraryRepository.kt` — Repository interface; yalnızca domain/UI katmanına açık.
+  - `data/library/DefaultLibraryRepository.kt` — `PlaylistsApi` bağımlılığıyla gerçek ağ implementasyonu; `runCatching` ile `Result` sarmalayıcı.
+  - `di/LibraryModule.kt` — `@Binds @Singleton`; `DefaultLibraryRepository` → `LibraryRepository`.
+  - `data/network/NetworkModule.kt` — `@Provides providePlaylistsApi` eklendi (mevcut `SongsApi` dokunulmadı).
+  - `ui/library/LibraryContract.kt` — `LibraryUiState`, `PlaylistUiModel`, `LibraryIntent`, `LibraryEffect`.
+  - `ui/library/LibraryViewModel.kt` — `@HiltViewModel`; `init{}` ile otomatik yükleme; DTO→UiModel dönüşümü ViewModel'de.
+  - `ui/library/LibraryScreen.kt` — `LibraryRoute` (stateful) + `LibraryScreen` (stateless); tab filtresi, gradient artwork, loading/empty/error durumları.
+  - `ui/navigation/LyraNavHost.kt` — `PlaceholderScreen("Kütüphane")` → `LibraryRoute()`.
+
+- Paket Ayrımı: `PlaylistsApi` yalnızca `data/playlists/`, `LibraryRepository` yalnızca `data/library/` içindedir. ViewModel yalnızca `LibraryRepository` interface'ini görür; API'yi bilmez.
+
+- Playlist detay navigasyonu (sonraki faz): `LibraryEffect.NavigateToPlaylistDetail` hazır bırakıldı. Şimdilik snackbar gösterir; detay ekranı eklendiğinde yalnızca `LyraNavHost` güncellenir.
+
+- Sebep: Clean Architecture katman ayrımı ve MVI sözleşmesiyle tutarlılık (bkz. agents.md §2.4).
