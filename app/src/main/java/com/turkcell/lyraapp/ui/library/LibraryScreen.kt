@@ -1,6 +1,5 @@
 package com.turkcell.lyraapp.ui.library
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -52,12 +51,6 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
 /**
  * Library akışının durumlu (stateful) giriş noktası.
- *
- * [LibraryViewModel]'i Hilt'ten alır, durumu yaşam döngüsüne duyarlı şekilde toplar ve
- * tek seferlik [LibraryEffect]'leri tüketir. UI ile iş mantığı arasındaki tek köprü burasıdır.
- *
- * Navigasyon lambda'ları NavHost'tan sağlanır; ViewModel navigasyon API'si bilmez —
- * bkz. docs/architecture/mvi-viewmodel-rules.md §6.
  */
 @Composable
 fun LibraryRoute(
@@ -74,7 +67,6 @@ fun LibraryRoute(
                     snackbarHostState.showSnackbar(effect.message)
 
                 is LibraryEffect.NavigateToPlaylistDetail -> {
-                    // Sonraki fazda: navController.navigate(playlistDetailRoute(effect.playlistId))
                     snackbarHostState.showSnackbar("Playlist: ${effect.playlistId}")
                 }
             }
@@ -91,9 +83,6 @@ fun LibraryRoute(
 
 /**
  * Kütüphane ekranı.
- *
- * Tamamen durumsuzdur (stateless): durumu [state] üzerinden alır, kullanıcı etkileşimlerini
- * [onIntent] ile yukarı yayımlar. İş mantığı veya state sahipliği bu katmanda bulunmaz.
  */
 @Composable
 fun LibraryScreen(
@@ -118,7 +107,8 @@ fun LibraryScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(modifier = Modifier.fillMaxSize()) {
-                AnimatedVisibility(
+                // Derleyicinin karıştırmaması için doğrudan tam paket adıyla çağırıyoruz
+                androidx.compose.animation.AnimatedVisibility(
                     visible = state.isLoading,
                     enter = fadeIn(tween(300)),
                     exit = fadeOut(tween(300)),
@@ -130,7 +120,7 @@ fun LibraryScreen(
                     )
                 }
 
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = !state.isLoading && state.playlists.isNotEmpty(),
                     enter = fadeIn(tween(400)),
                     exit = fadeOut(tween(200)),
@@ -141,7 +131,7 @@ fun LibraryScreen(
                     )
                 }
 
-                AnimatedVisibility(
+                androidx.compose.animation.AnimatedVisibility(
                     visible = !state.isLoading && state.playlists.isEmpty() && state.errorMessage == null,
                     enter = fadeIn(tween(400)),
                     exit = fadeOut(tween(200)),
@@ -285,12 +275,6 @@ private fun PlaylistItem(
     }
 }
 
-/**
- * Çalma listesi için renkli gradient arka planlı kare görsel.
- *
- * API kapak resmi sağlamaz; [playlistId]'den deterministik renk çifti türetilir
- * (aynı playlist her zaman aynı rengi alır — bkz. decisions.md Şarkı Listesi kararı).
- */
 @Composable
 private fun PlaylistArtwork(
     playlistId: String,
@@ -316,10 +300,6 @@ private fun PlaylistArtwork(
     }
 }
 
-/**
- * [playlistId] string'inden 0-360 arası ton değeri türetir ve iki uyumlu HSL rengi döndürür.
- * Saf rastgele yerine deterministik: aynı id her zaman aynı rengi verir.
- */
 private fun deterministicGradient(id: String): Pair<Color, Color> {
     val hue = ((id.hashCode() and 0x7FFFFFFF) % 360).toFloat()
     val start = Color.hsl(hue, saturation = 0.60f, lightness = 0.42f)
