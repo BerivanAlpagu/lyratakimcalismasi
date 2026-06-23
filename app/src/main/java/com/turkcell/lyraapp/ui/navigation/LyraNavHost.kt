@@ -1,5 +1,6 @@
 package com.turkcell.lyraapp.ui.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,7 +10,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import android.net.Uri
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -99,13 +99,24 @@ fun LyraNavHost(
                     },
                 )
             }
-            composable(LyraDestination.Search.route) { PlaceholderScreen(title = "Ara") }
+
+            // Burası PlaceholderScreen yerine gerçek SearchRoute'a bağlandı
+            composable(LyraDestination.Search.route) {
+                SearchRoute(
+                    onSongClick = { songId, title, artist ->
+                        navController.navigate(playerRoute(songId, title, artist))
+                    }
+                )
+            }
+
             composable(LyraDestination.Library.route) { LibraryRoute() }
+
             composable(LyraDestination.Favorites.route) {
                 com.turkcell.lyraapp.ui.favorites.FavoritesRoute(
                     onShowSnackbar = {}
                 )
             }
+
             composable(LyraDestination.Profile.route) {
                 com.turkcell.lyraapp.ui.profile.ProfileRoute(
                     onShowSnackbar = {},
@@ -144,8 +155,8 @@ fun LyraNavHost(
  */
 private const val PLAYER_ROUTE_PATTERN =
     "player/{${PlayerViewModel.ARG_SONG_ID}}?" +
-        "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
-        "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
+            "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
+            "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
 
 /**
  * Bir şarkı için gerçek oynatıcı yolunu üretir. Tüm bileşenler URL-encode edilir; böylece
@@ -153,8 +164,8 @@ private const val PLAYER_ROUTE_PATTERN =
  */
 private fun playerRoute(songId: String, title: String, artist: String): String =
     "player/${Uri.encode(songId)}?" +
-        "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
-        "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
+            "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
+            "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
 
 /**
  * Alt çubuk sekmesine standart desenle geçiş yapar: back stack'te sekme kopyası birikmez
@@ -174,27 +185,5 @@ private fun NavHostController.navigateToHomeClearingAuth() {
     navigate(LyraDestination.Home.route) {
         popUpTo(LyraDestination.Login.route) { inclusive = true }
         launchSingleTop = true
-    }
-}
-
-/**
- * Geçici sekme içeriği. Sekme ekranları henüz kapsamda değildir; her biri kendi
- * feature paketinde MVI sözleşmesiyle (Contract + ViewModel + Route/Screen) yazıldığında
- * bu composable kaldırılacak ve rotalar gerçek Route'lara bağlanacaktır.
- */
-@Composable
-private fun PlaceholderScreen(
-    title: String,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
