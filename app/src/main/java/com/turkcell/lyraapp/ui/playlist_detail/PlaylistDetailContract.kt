@@ -36,6 +36,15 @@ sealed interface PlaylistDetailIntent {
 
     /** Diyalogdan bir şarkı seçildiğinde. */
     data class ConfirmAddSong(val songId: String) : PlaylistDetailIntent
+
+    /** Çalma listesini tamamen silme isteği. */
+    data object DeletePlaylistClicked : PlaylistDetailIntent
+
+    /** Çalma listesinden şarkı çıkarma isteği. */
+    data class RemoveSongClicked(val songId: String) : PlaylistDetailIntent
+
+    /** Şarkıların sırasını sürükleyerek değiştirme isteği. */
+    data class ReorderSongs(val fromIndex: Int, val toIndex: Int) : PlaylistDetailIntent
 }
 
 sealed interface PlaylistDetailEffect {

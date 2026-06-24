@@ -51,4 +51,9 @@ interface LibraryRepository {
      * Belirtilen çalma listesinden şarkı siler (`DELETE /api/v1/me/playlists/{id}/tracks/{songId}`).
      */
     suspend fun removeSongFromPlaylist(playlistId: String, songId: String): Result<Unit>
+
+    /**
+     * Çalma listesini tamamen siler (`DELETE /api/v1/me/playlists/{id}`).
+     */
+    suspend fun deletePlaylist(playlistId: String): Result<Unit>
 }

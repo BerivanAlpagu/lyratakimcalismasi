@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.library.LibraryRepository
+import com.turkcell.lyraapp.data.player.GlobalPlayerManager
+import com.turkcell.lyraapp.data.songs.SongDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +26,7 @@ import javax.inject.Inject
 class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
+    private val globalPlayerManager: GlobalPlayerManager,
 ) : ViewModel() {
 
     private val playlistId: String = checkNotNull(savedStateHandle["playlistId"]) {
@@ -56,6 +59,15 @@ class PlaylistDetailViewModel @Inject constructor(
             is PlaylistDetailIntent.ConfirmAddSong -> {
                 addSongToPlaylist(intent.songId)
             }
+            is PlaylistDetailIntent.DeletePlaylistClicked -> {
+                deletePlaylist()
+            }
+            is PlaylistDetailIntent.RemoveSongClicked -> {
+                removeSong(intent.songId)
+            }
+            is PlaylistDetailIntent.ReorderSongs -> {
+                reorderSongs(intent.fromIndex, intent.toIndex)
+            }
         }
     }
 
@@ -71,6 +83,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     _effect.send(
                         PlaylistDetailEffect.ShowError(
                             error.message ?: "Çalma listesi detayları yüklenemedi."
+
                         )
                     )
                 }
@@ -115,15 +128,68 @@ class PlaylistDetailViewModel @Inject constructor(
         }
     }
 
-    private fun navigateBack() {
+    private fun playSong(songId: String, title: String, artist: String) {
+        val songs = _uiState.value.playlist?.songs ?: emptyList()
+        val index = songs.indexOfFirst { it.id == songId }
+        globalPlayerManager.playSongWithQueue(songs, index)
         viewModelScope.launch {
-            _effect.send(PlaylistDetailEffect.NavigateBack)
+            _effect.send(PlaylistDetailEffect.NavigateToPlayer(songId, title, artist))
         }
     }
 
-    private fun playSong(songId: String, title: String, artist: String) {
+    private fun deletePlaylist() {
         viewModelScope.launch {
-            _effect.send(PlaylistDetailEffect.NavigateToPlayer(songId, title, artist))
+            _uiState.update { it.copy(isLoading = true) }
+            libraryRepository.deletePlaylist(playlistId)
+                .onSuccess {
+                    _effect.send(PlaylistDetailEffect.NavigateBack)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effect.send(
+                        PlaylistDetailEffect.ShowError(
+                            error.message ?: "Çalma listesi silinemedi."
+                        )
+                    )
+                }
+        }
+    }
+
+    private fun removeSong(songId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            libraryRepository.removeSongFromPlaylist(playlistId, songId)
+                .onSuccess {
+                    loadDetail(playlistId)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effect.send(
+                        PlaylistDetailEffect.ShowError(
+                            error.message ?: "Şarkı çalma listesinden çıkarılamadı."
+                        )
+                    )
+                }
+        }
+    }
+
+    private fun reorderSongs(fromIndex: Int, toIndex: Int) {
+        val playlist = _uiState.value.playlist ?: return
+        val songs = playlist.songs.toMutableList()
+        if (fromIndex in songs.indices && toIndex in songs.indices) {
+            val moved = songs.removeAt(fromIndex)
+            songs.add(toIndex, moved)
+            _uiState.update { state ->
+                state.copy(
+                    playlist = playlist.copy(songs = songs)
+                )
+            }
+        }
+    }
+
+    private fun navigateBack() {
+        viewModelScope.launch {
+            _effect.send(PlaylistDetailEffect.NavigateBack)
         }
     }
 }

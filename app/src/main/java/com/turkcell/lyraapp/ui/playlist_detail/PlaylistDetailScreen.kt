@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -123,7 +127,10 @@ fun PlaylistDetailScreen(
                     ) {
                         // Top Navigation bar inside scrollable list
                         item {
-                            DetailTopBar(onBackClick = { onIntent(PlaylistDetailIntent.BackClicked) })
+                            DetailTopBar(
+                                onBackClick = { onIntent(PlaylistDetailIntent.BackClicked) },
+                                onDeletePlaylist = { onIntent(PlaylistDetailIntent.DeletePlaylistClicked) }
+                            )
                         }
 
                         // Header / Artwork
@@ -160,8 +167,19 @@ fun PlaylistDetailScreen(
                             SongItem(
                                 index = index + 1,
                                 song = song,
+                                isFirst = index == 0,
+                                isLast = index == playlist.songs.lastIndex,
                                 onClick = {
                                     onIntent(PlaylistDetailIntent.SongClicked(song.id, song.title, song.artist))
+                                },
+                                onRemoveSong = {
+                                    onIntent(PlaylistDetailIntent.RemoveSongClicked(song.id))
+                                },
+                                onMoveUp = {
+                                    onIntent(PlaylistDetailIntent.ReorderSongs(index, index - 1))
+                                },
+                                onMoveDown = {
+                                    onIntent(PlaylistDetailIntent.ReorderSongs(index, index + 1))
                                 }
                             )
                         }
@@ -215,8 +233,11 @@ fun PlaylistDetailScreen(
 
 @Composable
 private fun DetailTopBar(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onDeletePlaylist: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -232,12 +253,26 @@ private fun DetailTopBar(
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
-        IconButton(onClick = { }) {
-            Icon(
-                imageVector = LyraIcons.MoreVert,
-                contentDescription = "Daha Fazla",
-                tint = MaterialTheme.colorScheme.onSurface
-            )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = LyraIcons.MoreVert,
+                    contentDescription = "Daha Fazla",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Çalma Listesini Sil") },
+                    onClick = {
+                        menuExpanded = false
+                        onDeletePlaylist()
+                    }
+                )
+            }
         }
     }
 }
@@ -382,8 +417,15 @@ private fun ActionRow(
 private fun SongItem(
     index: Int,
     song: SongDto,
-    onClick: () -> Unit
+    isFirst: Boolean,
+    isLast: Boolean,
+    onClick: () -> Unit,
+    onRemoveSong: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -391,6 +433,13 @@ private fun SongItem(
             .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Reorder handle indicator
+        Text(
+            text = "☰",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+            modifier = Modifier.padding(end = 8.dp)
+        )
         // Thumbnail or index
         Text(
             text = index.toString(),
@@ -435,13 +484,45 @@ private fun SongItem(
                 modifier = Modifier.size(20.dp)
             )
         }
-        IconButton(onClick = { }) {
-            Icon(
-                imageVector = LyraIcons.MoreVert,
-                contentDescription = "Seçenekler",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
-                modifier = Modifier.size(20.dp)
-            )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = LyraIcons.MoreVert,
+                    contentDescription = "Seçenekler",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Çalma Listesinden Kaldır") },
+                    onClick = {
+                        menuExpanded = false
+                        onRemoveSong()
+                    }
+                )
+                if (!isFirst) {
+                    DropdownMenuItem(
+                        text = { Text("Yukarı Taşı") },
+                        onClick = {
+                            menuExpanded = false
+                            onMoveUp()
+                        }
+                    )
+                }
+                if (!isLast) {
+                    DropdownMenuItem(
+                        text = { Text("Aşağı Taşı") },
+                        onClick = {
+                            menuExpanded = false
+                            onMoveDown()
+                        }
+                    )
+                }
+            }
         }
     }
 }

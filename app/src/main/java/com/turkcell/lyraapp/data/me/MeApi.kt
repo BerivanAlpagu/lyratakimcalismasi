@@ -46,6 +46,11 @@ interface MeApi {
         @Path("id") playlistId: String,
         @Path("songId") songId: String,
     ): RemoveSongResponse
+
+    @DELETE("api/v1/me/playlists/{id}")
+    suspend fun deletePlaylist(
+        @Path("id") playlistId: String,
+    ): retrofit2.Response<Unit>
 }
 
 @Serializable
