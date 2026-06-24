@@ -1,6 +1,8 @@
 package com.turkcell.lyraapp.data.me
 
 import com.turkcell.lyraapp.data.auth.UserDto
+import com.turkcell.lyraapp.data.playlists.PlaylistDto
+import com.turkcell.lyraapp.data.playlists.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.songs.SongDto
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
@@ -24,6 +26,12 @@ interface MeApi {
 
     @POST("api/v1/me/plays")
     suspend fun recordPlay(@Body request: RecordPlayDto)
+
+    @GET("api/v1/me/playlists")
+    suspend fun getMyPlaylists(): PlaylistsResponseDto
+
+    @POST("api/v1/me/playlists")
+    suspend fun createPlaylist(@Body request: CreatePlaylistRequest): CreatePlaylistResponse
 }
 
 @Serializable
@@ -51,4 +59,15 @@ data class MeSongsResponseDto(
 @Serializable
 data class MeResponseDto(
     val data: UserDto
+)
+
+@Serializable
+data class CreatePlaylistRequest(
+    val name: String,
+    val description: String? = null
+)
+
+@Serializable
+data class CreatePlaylistResponse(
+    val data: PlaylistDto
 )

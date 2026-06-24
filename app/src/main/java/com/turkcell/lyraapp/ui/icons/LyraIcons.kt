@@ -254,6 +254,30 @@ object LyraIcons {
             pathData = "M8.59,16.59L13.17,12 8.59,7.41 10,6l6,6 -6,6 -1.41,-1.41z",
         )
     }
+
+    /** Artı / Ekle İkonu (Material Add). */
+    val Add: ImageVector by lazy {
+        lyraIcon(
+            name = "Add",
+            pathData = "M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+        )
+    }
+
+    /** İndirme İkonu (Material Download / ArrowDown inside a circle). */
+    val Download: ImageVector by lazy {
+        lyraIcon(
+            name = "Download",
+            pathData = "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,17l-4,-4h3V8h2v5h3l-4,4z",
+        )
+    }
+
+    /** Kapat İkonu (Material Close). */
+    val Close: ImageVector by lazy {
+        lyraIcon(
+            name = "Close",
+            pathData = "M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z",
+        )
+    }
 }
 
 /**

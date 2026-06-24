@@ -1,6 +1,7 @@
 package com.turkcell.lyraapp.data.library
 
 import com.turkcell.lyraapp.data.playlists.PlaylistDto
+import com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto
 
 /**
  * Kütüphane özelliğinin veri sözleşmesi.
@@ -19,4 +20,19 @@ interface LibraryRepository {
      * [Result.failure] içinde istisna döner. Boş liste geçerli bir başarı durumudur.
      */
     suspend fun getPlaylists(): Result<List<PlaylistDto>>
+
+    /**
+     * Oturumu açık olan kullanıcının kendi çalma listelerini getirir.
+     */
+    suspend fun getMyPlaylists(): Result<List<PlaylistDto>>
+
+    /**
+     * Kullanıcı için yeni bir çalma listesi oluşturur.
+     */
+    suspend fun createPlaylist(name: String, description: String?): Result<PlaylistDto>
+
+    /**
+     * Belirli bir çalma listesinin detayını ve içindeki şarkıları getirir.
+     */
+    suspend fun getPlaylistDetail(id: String): Result<PlaylistWithSongsDto>
 }

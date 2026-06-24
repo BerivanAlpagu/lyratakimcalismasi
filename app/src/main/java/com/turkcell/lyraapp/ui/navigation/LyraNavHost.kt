@@ -120,7 +120,25 @@ fun LyraNavHost(
                 )
             }
 
-            composable(LyraDestination.Library.route) { LibraryRoute() }
+            composable(LyraDestination.Library.route) {
+                LibraryRoute(
+                    onNavigateToPlaylistDetail = { playlistId ->
+                        navController.navigate("${LyraDestination.PlaylistDetail.route}/$playlistId")
+                    }
+                )
+            }
+
+            composable(
+                route = "${LyraDestination.PlaylistDetail.route}/{playlistId}",
+                arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+            ) {
+                com.turkcell.lyraapp.ui.playlist_detail.PlaylistDetailRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onSongClick = { songId, title, artist ->
+                        navController.navigate(playerRoute(songId, title, artist))
+                    }
+                )
+            }
 
             composable(LyraDestination.Favorites.route) {
                 com.turkcell.lyraapp.ui.favorites.FavoritesRoute(

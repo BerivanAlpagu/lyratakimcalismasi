@@ -13,9 +13,27 @@ package com.turkcell.lyraapp.ui.library
  * [playlists] boş liste ile başlar; [isLoading] ilk yükleme sırasında `true` olur.
  * [errorMessage] yalnızca hata durumunda dolu olur ve yükleme başlarken temizlenir.
  */
+enum class LibraryTab {
+    PLAYLISTS,
+    ARTISTS,
+    ALBUMS
+}
+
+/**
+ * Ekranın gözlemlenebilir tüm durumu. Tek bir immutable kaynak (single source of truth).
+ *
+ * [playlists] boş liste ile başlar; [isLoading] ilk yükleme sırasında `true` olur.
+ * [errorMessage] yalnızca hata durumunda dolu olur ve yükleme başlarken temizlenir.
+ */
 data class LibraryUiState(
     val playlists: List<PlaylistUiModel> = emptyList(),
+    val filteredPlaylists: List<PlaylistUiModel> = emptyList(),
+    val selectedTab: LibraryTab = LibraryTab.PLAYLISTS,
+    val searchQuery: String = "",
+    val isSearchActive: Boolean = false,
     val isLoading: Boolean = false,
+    val isCreatingPlaylist: Boolean = false,
+    val createDialogVisible: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -43,6 +61,24 @@ sealed interface LibraryIntent {
 
     /** Kullanıcı bir çalma listesine tıkladı. */
     data class PlaylistClicked(val playlistId: String) : LibraryIntent
+
+    /** Sekme seçildiğinde. */
+    data class TabSelected(val tab: LibraryTab) : LibraryIntent
+
+    /** Arama sorgusu değiştiğinde. */
+    data class SearchQueryChanged(val query: String) : LibraryIntent
+
+    /** Arama barı açılıp kapandığında. */
+    data object ToggleSearch : LibraryIntent
+
+    /** Yeni çalma listesi oluşturma diyaloğunu açar. */
+    data object ShowCreateDialog : LibraryIntent
+
+    /** Yeni çalma listesi oluşturma diyaloğunu kapatır. */
+    data object DismissCreateDialog : LibraryIntent
+
+    /** Çalma listesi oluşturulmasını onaylar. */
+    data class ConfirmCreatePlaylist(val name: String, val description: String?) : LibraryIntent
 }
 
 /**
@@ -54,6 +90,6 @@ sealed interface LibraryEffect {
     /** Ağ/ayrıştırma hatası; kullanıcıya gösterilecek mesaj. */
     data class ShowError(val message: String) : LibraryEffect
 
-    /** Çalma listesi detay ekranına geçiş (sonraki faz için hazır). */
+    /** Çalma listesi detay ekranına geçiş. */
     data class NavigateToPlaylistDetail(val playlistId: String) : LibraryEffect
 }

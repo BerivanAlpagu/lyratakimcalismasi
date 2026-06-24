@@ -1,6 +1,9 @@
 package com.turkcell.lyraapp.data.library
 
+import com.turkcell.lyraapp.data.me.CreatePlaylistRequest
+import com.turkcell.lyraapp.data.me.MeApi
 import com.turkcell.lyraapp.data.playlists.PlaylistDto
+import com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto
 import com.turkcell.lyraapp.data.playlists.PlaylistsApi
 import javax.inject.Inject
 
@@ -15,6 +18,7 @@ import javax.inject.Inject
  */
 class DefaultLibraryRepository @Inject constructor(
     private val playlistsApi: PlaylistsApi,
+    private val meApi: MeApi,
 ) : LibraryRepository {
 
     /**
@@ -26,5 +30,21 @@ class DefaultLibraryRepository @Inject constructor(
     override suspend fun getPlaylists(): Result<List<PlaylistDto>> =
         runCatching {
             playlistsApi.getPlaylists().data
+        }
+
+    override suspend fun getMyPlaylists(): Result<List<PlaylistDto>> =
+        runCatching {
+            meApi.getMyPlaylists().data
+        }
+
+    override suspend fun createPlaylist(name: String, description: String?): Result<PlaylistDto> =
+        runCatching {
+            val request = CreatePlaylistRequest(name = name, description = description)
+            meApi.createPlaylist(request).data
+        }
+
+    override suspend fun getPlaylistDetail(id: String): Result<PlaylistWithSongsDto> =
+        runCatching {
+            playlistsApi.getPlaylistById(id).data
         }
 }

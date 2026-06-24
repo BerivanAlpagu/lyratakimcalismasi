@@ -20,20 +20,26 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,7 +48,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +59,7 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
  */
 @Composable
 fun LibraryRoute(
+    onNavigateToPlaylistDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -67,7 +73,7 @@ fun LibraryRoute(
                     snackbarHostState.showSnackbar(effect.message)
 
                 is LibraryEffect.NavigateToPlaylistDetail -> {
-                    snackbarHostState.showSnackbar("Playlist: ${effect.playlistId}")
+                    onNavigateToPlaylistDetail(effect.playlistId)
                 }
             }
         }
@@ -102,12 +108,11 @@ fun LibraryScreen(
                 .padding(innerPadding)
                 .statusBarsPadding(),
         ) {
-            LibraryTopBar()
-            LibraryTabRow()
+            LibraryTopBar(state = state, onIntent = onIntent)
+            LibraryTabRow(selectedTab = state.selectedTab, onTabSelected = { onIntent(LibraryIntent.TabSelected(it)) })
             Spacer(modifier = Modifier.height(8.dp))
 
             Box(modifier = Modifier.fillMaxSize()) {
-                // Derleyicinin karıştırmaması için doğrudan tam paket adıyla çağırıyoruz
                 androidx.compose.animation.AnimatedVisibility(
                     visible = state.isLoading,
                     enter = fadeIn(tween(300)),
@@ -121,26 +126,44 @@ fun LibraryScreen(
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = !state.isLoading && state.playlists.isNotEmpty(),
+                    visible = !state.isLoading && state.selectedTab == LibraryTab.PLAYLISTS && state.filteredPlaylists.isNotEmpty(),
                     enter = fadeIn(tween(400)),
                     exit = fadeOut(tween(200)),
                 ) {
                     PlaylistList(
-                        playlists = state.playlists,
+                        playlists = state.filteredPlaylists,
                         onPlaylistClick = { onIntent(LibraryIntent.PlaylistClicked(it)) },
                     )
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = !state.isLoading && state.playlists.isEmpty() && state.errorMessage == null,
+                    visible = !state.isLoading && state.selectedTab == LibraryTab.PLAYLISTS && state.filteredPlaylists.isEmpty() && state.errorMessage == null,
                     enter = fadeIn(tween(400)),
                     exit = fadeOut(tween(200)),
                     modifier = Modifier.align(Alignment.Center),
                 ) {
-                    EmptyState()
+                    EmptyPlaylistsState()
                 }
 
-                if (state.errorMessage != null && !state.isLoading) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !state.isLoading && state.selectedTab == LibraryTab.ARTISTS,
+                    enter = fadeIn(tween(400)),
+                    exit = fadeOut(tween(200)),
+                    modifier = Modifier.align(Alignment.Center),
+                ) {
+                    EmptyArtistsState()
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !state.isLoading && state.selectedTab == LibraryTab.ALBUMS,
+                    enter = fadeIn(tween(400)),
+                    exit = fadeOut(tween(200)),
+                    modifier = Modifier.align(Alignment.Center),
+                ) {
+                    EmptyAlbumsState()
+                }
+
+                if (state.errorMessage != null && !state.isLoading && state.playlists.isEmpty()) {
                     ErrorState(
                         onRetry = { onIntent(LibraryIntent.RetryClicked) },
                         modifier = Modifier.align(Alignment.Center),
@@ -149,47 +172,103 @@ fun LibraryScreen(
             }
         }
     }
+
+    if (state.createDialogVisible) {
+        CreatePlaylistDialog(
+            isCreating = state.isCreatingPlaylist,
+            onDismiss = { onIntent(LibraryIntent.DismissCreateDialog) },
+            onConfirm = { name, description ->
+                onIntent(LibraryIntent.ConfirmCreatePlaylist(name, description))
+            }
+        )
+    }
 }
 
 @Composable
-private fun LibraryTopBar() {
+private fun LibraryTopBar(
+    state: LibraryUiState,
+    onIntent: (LibraryIntent) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = "Kütüphane",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(
-                imageVector = LyraIcons.Search,
-                contentDescription = "Ara",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        if (state.isSearchActive) {
+            OutlinedTextField(
+                value = state.searchQuery,
+                onValueChange = { onIntent(LibraryIntent.SearchQueryChanged(it)) },
                 modifier = Modifier
-                    .size(24.dp)
-                    .clickable { },
+                    .weight(1f)
+                    .padding(end = 8.dp),
+                placeholder = { Text("Çalma listesi ara...", style = MaterialTheme.typography.bodyLarge) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                ),
+                leadingIcon = {
+                    Icon(
+                        imageVector = LyraIcons.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = {
+                    IconButton(onClick = { onIntent(LibraryIntent.ToggleSearch) }) {
+                        Icon(
+                            imageVector = LyraIcons.Close,
+                            contentDescription = "Aramayı Kapat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                imageVector = LyraIcons.Waveform,
-                contentDescription = "Ekle",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp),
+        } else {
+            Text(
+                text = "Kütüphane",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = { onIntent(LibraryIntent.ToggleSearch) }) {
+                    Icon(
+                        imageVector = LyraIcons.Search,
+                        contentDescription = "Ara",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(onClick = { onIntent(LibraryIntent.ShowCreateDialog) }) {
+                    Icon(
+                        imageVector = LyraIcons.Add,
+                        contentDescription = "Yeni Çalma Listesi",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun LibraryTabRow() {
-    val tabs = listOf("Çalma listeleri", "Sanatçılar", "Albümler")
-    var selectedTab by remember { mutableIntStateOf(0) }
+private fun LibraryTabRow(
+    selectedTab: LibraryTab,
+    onTabSelected: (LibraryTab) -> Unit,
+) {
+    val tabs = listOf(
+        LibraryTab.PLAYLISTS to "Çalma listeleri",
+        LibraryTab.ARTISTS to "Sanatçılar",
+        LibraryTab.ALBUMS to "Albümler"
+    )
 
     Row(
         modifier = Modifier
@@ -197,15 +276,15 @@ private fun LibraryTabRow() {
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        tabs.forEachIndexed { index, label ->
+        tabs.forEach { (tab, label) ->
             FilterChip(
-                selected = selectedTab == index,
-                onClick = { selectedTab = index },
+                selected = selectedTab == tab,
+                onClick = { onTabSelected(tab) },
                 label = {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal,
+                        fontWeight = if (selectedTab == tab) FontWeight.Bold else FontWeight.Normal,
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
@@ -267,7 +346,7 @@ private fun PlaylistItem(
             )
         }
         Icon(
-            imageVector = LyraIcons.Waveform,
+            imageVector = LyraIcons.KeyboardArrowRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(20.dp),
@@ -280,7 +359,7 @@ private fun PlaylistArtwork(
     playlistId: String,
     modifier: Modifier = Modifier,
 ) {
-    val (startColor, endColor) = remember(playlistId) { deterministicGradient(playlistId) }
+    val (startColor, endColor) = deterministicGradient(playlistId)
 
     Box(
         modifier = modifier
@@ -300,18 +379,27 @@ private fun PlaylistArtwork(
     }
 }
 
+@Composable
 private fun deterministicGradient(id: String): Pair<Color, Color> {
-    val hue = ((id.hashCode() and 0x7FFFFFFF) % 360).toFloat()
-    val start = Color.hsl(hue, saturation = 0.60f, lightness = 0.42f)
-    val end = Color.hsl((hue + 40f) % 360f, saturation = 0.50f, lightness = 0.30f)
-    return start to end
+    val colors = listOf(
+        MaterialTheme.colorScheme.primary to MaterialTheme.colorScheme.secondary,
+        MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.tertiary,
+        MaterialTheme.colorScheme.tertiary to MaterialTheme.colorScheme.primary,
+        MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.secondaryContainer,
+        MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.primaryContainer
+    )
+    val index = (id.hashCode() and 0x7FFFFFFF) % colors.size
+    return colors[index]
 }
 
 @Composable
-private fun EmptyState() {
+private fun EmptyPlaylistsState() {
     Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.Center
     ) {
         Icon(
             imageVector = LyraIcons.LibraryMusicOutlined,
@@ -319,8 +407,57 @@ private fun EmptyState() {
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(48.dp),
         )
+        Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Henüz çalma listesi yok",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun EmptyArtistsState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = LyraIcons.PersonOutlined,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Henüz sanatçı yok",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@Composable
+private fun EmptyAlbumsState() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Icon(
+            imageVector = LyraIcons.LibraryMusicOutlined,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(48.dp),
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Henüz albüm yok",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -348,31 +485,81 @@ private fun ErrorState(
     }
 }
 
-@Preview(name = "Library - Dolu Liste", showBackground = true, showSystemUi = true)
 @Composable
-private fun LibraryScreenLoadedPreview() {
-    LyraAppTheme(darkTheme = true) {
-        LibraryScreen(
-            state = LibraryUiState(
-                playlists = listOf(
-                    PlaylistUiModel("p_1", "Beğenilen Şarkılar", "Çalma listesi · 5 şarkı"),
-                    PlaylistUiModel("p_2", "Gece Sürüşü", "Çalma listesi · 6 şarkı"),
-                    PlaylistUiModel("p_3", "Sabah Kahvesi", "Çalma listesi · 5 şarkı"),
-                    PlaylistUiModel("p_4", "Odaklan", null),
-                ),
-            ),
-            onIntent = {},
-        )
-    }
-}
+private fun CreatePlaylistDialog(
+    isCreating: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: (name: String, description: String?) -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
 
-@Preview(name = "Library - Yükleniyor", showBackground = true, showSystemUi = true)
-@Composable
-private fun LibraryScreenLoadingPreview() {
-    LyraAppTheme(darkTheme = true) {
-        LibraryScreen(
-            state = LibraryUiState(isLoading = true),
-            onIntent = {},
-        )
-    }
+    AlertDialog(
+        onDismissRequest = { if (!isCreating) onDismiss() },
+        title = {
+            Text(
+                text = "Yeni Çalma Listesi",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("İsim") },
+                    placeholder = { Text("Çalma listesi adı") },
+                    singleLine = true,
+                    enabled = !isCreating,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    )
+                )
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Açıklama (İsteğe bağlı)") },
+                    placeholder = { Text("Açıklama ekleyin") },
+                    singleLine = false,
+                    maxLines = 3,
+                    enabled = !isCreating,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    )
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onConfirm(name, description.takeIf { it.isNotBlank() }) },
+                enabled = name.isNotBlank() && !isCreating,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
+            ) {
+                if (isCreating) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Oluştur")
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isCreating
+            ) {
+                Text("İptal")
+            }
+        }
+    )
 }
