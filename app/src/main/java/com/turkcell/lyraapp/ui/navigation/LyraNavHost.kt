@@ -20,7 +20,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.turkcell.lyraapp.ui.auth.login.LoginRoute
-import com.turkcell.lyraapp.ui.auth.login.LoginRoute
 import com.turkcell.lyraapp.ui.auth.otp.OtpRoute
 import com.turkcell.lyraapp.ui.auth.profile.ProfileCompleteRoute
 import com.turkcell.lyraapp.ui.home.HomeRoute
