@@ -105,7 +105,7 @@ class GlobalPlayerManager @Inject constructor(
                     player.prepare()
                     player.playWhenReady = true
                     startPolling()
-                    
+
                     // Record play
                     try {
                         meApi.recordPlay(RecordPlayDto(songId))

@@ -38,6 +38,8 @@ class PlayerViewModel @Inject constructor(
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
             errorMessage = state.errorMessage
+            // İlerleyen fazlarda ihtiyaç halinde buraya globalPlayerManager üzerinden
+            // isFavorite, repeatMode, isShuffling gibi durumlar da map'lenebilir.
         )
     }.stateIn(
         scope = viewModelScope,
@@ -46,7 +48,7 @@ class PlayerViewModel @Inject constructor(
     )
 
     init {
-        // If the manager is not currently playing THIS song, we tell it to play.
+        // Eğer manager şu an BU şarkıyı çalmıyorsa, çalmasını söylüyoruz.
         if (globalPlayerManager.playerState.value.songId != songId) {
             globalPlayerManager.playSong(songId, title, artist)
         }
@@ -54,12 +56,33 @@ class PlayerViewModel @Inject constructor(
 
     fun onIntent(intent: PlayerIntent) {
         when (intent) {
+            // Mevcut Lojikleriniz (Aynen Korundu)
             PlayerIntent.TogglePlayPause -> globalPlayerManager.togglePlayPause()
             PlayerIntent.Restart -> globalPlayerManager.restart()
             PlayerIntent.SeekForward -> globalPlayerManager.seekBy(SEEK_STEP_MS)
             PlayerIntent.SeekBackward -> globalPlayerManager.seekBy(-SEEK_STEP_MS)
             is PlayerIntent.SeekTo -> globalPlayerManager.seekTo(intent.positionMs)
             PlayerIntent.Retry -> globalPlayerManager.playSong(songId, title, artist)
+
+            // ─── YENİ KONTRATA GÖRE IDE HATASINI ÇÖZEN EKSİK DALLAR ───
+            PlayerIntent.SkipNext -> {
+                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
+            }
+            PlayerIntent.SkipPrevious -> {
+                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
+            }
+            PlayerIntent.ToggleFavorite -> {
+                // TODO: Favori repo/manager lojiği bağlandığında tetiklenecek
+            }
+            PlayerIntent.ToggleRepeat -> {
+                // TODO: Döngüsel tekrar modu lojiği bağlandığında tetiklenecek
+            }
+            PlayerIntent.ToggleShuffle -> {
+                // TODO: Karışık çalma lojiği bağlandığında tetiklenecek
+            }
+            is PlayerIntent.UpdateDominantColor -> {
+                // TODO: Palette API'den gelen renk durumunu UI state'e yazma lojiği
+            }
         }
     }
 
