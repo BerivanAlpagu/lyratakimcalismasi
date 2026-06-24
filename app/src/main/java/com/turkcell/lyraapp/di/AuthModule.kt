@@ -1,7 +1,7 @@
 package com.turkcell.lyraapp.di
 
 import com.turkcell.lyraapp.data.auth.AuthRepository
-import com.turkcell.lyraapp.data.auth.FakeAuthRepository
+import com.turkcell.lyraapp.data.auth.RealAuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -20,5 +20,5 @@ abstract class AuthModule {
 
     @Binds
     @Singleton
-    abstract fun bindAuthRepository(impl: FakeAuthRepository): AuthRepository
+    abstract fun bindAuthRepository(impl: RealAuthRepository): AuthRepository
 }

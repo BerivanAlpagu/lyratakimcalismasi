@@ -54,8 +54,7 @@ import androidx.compose.runtime.getValue
  */
 @Composable
 fun LoginRoute(
-    onNavigateToHome: () -> Unit,
-    onNavigateToRegister: () -> Unit,
+    onNavigateToOtp: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -66,8 +65,7 @@ fun LoginRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is LoginEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
-                LoginEffect.NavigateToHome -> onNavigateToHome()
-                LoginEffect.NavigateToRegister -> onNavigateToRegister()
+                is LoginEffect.NavigateToOtp -> onNavigateToOtp(effect.phone)
             }
         }
     }
@@ -118,36 +116,12 @@ fun LoginScreen(
                 value = state.phoneNumber,
                 onValueChange = { onIntent(LoginIntent.PhoneNumberChanged(it)) },
             )
-            Spacer(Modifier.height(14.dp))
-
-            PasswordField(
-                value = state.password,
-                isPasswordVisible = state.isPasswordVisible,
-                onValueChange = { onIntent(LoginIntent.PasswordChanged(it)) },
-                onToggleVisibility = { onIntent(LoginIntent.TogglePasswordVisibility) },
-            )
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                text = "Şifremi unuttum",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.End),
-            )
             Spacer(Modifier.height(28.dp))
 
             LoginButton(
                 enabled = state.isLoginEnabled,
                 isLoading = state.isLoading,
                 onClick = { onIntent(LoginIntent.Submit) },
-            )
-
-            Spacer(Modifier.weight(0.30f))
-
-            RegisterPrompt(
-                onRegisterClick = { onIntent(LoginIntent.RegisterClicked) },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Spacer(Modifier.height(16.dp))
         }
@@ -212,39 +186,7 @@ private fun PhoneNumberField(
     )
 }
 
-@Composable
-private fun PasswordField(
-    value: String,
-    isPasswordVisible: Boolean,
-    onValueChange: (String) -> Unit,
-    onToggleVisibility: () -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        placeholder = { Text("Şifre") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        visualTransformation =
-            if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        leadingIcon = {
-            Icon(
-                imageVector = LyraIcons.Lock,
-                contentDescription = null,
-            )
-        },
-        trailingIcon = {
-            IconButton(onClick = onToggleVisibility) {
-                Icon(
-                    imageVector = LyraIcons.Visibility,
-                    contentDescription = if (isPasswordVisible) "Şifreyi gizle" else "Şifreyi göster",
-                )
-            }
-        },
-    )
-}
+// PasswordField removed
 
 @Composable
 private fun LoginButton(
@@ -281,31 +223,7 @@ private fun LoginButton(
     }
 }
 
-@Composable
-private fun RegisterPrompt(
-    onRegisterClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = "Hesabın yok mu?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = "Kayıt ol",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickable(onClick = onRegisterClick),
-        )
-    }
-}
+// RegisterPrompt removed
 
 @Preview(name = "Login - Light", showBackground = true, showSystemUi = true)
 @Composable
@@ -320,7 +238,7 @@ private fun LoginScreenLightPreview() {
 private fun LoginScreenDarkPreview() {
     LyraAppTheme(darkTheme = true) {
         LoginScreen(
-            state = LoginUiState(phoneNumber = "555 123 45 67", password = "secret", isLoginEnabled = true),
+            state = LoginUiState(phoneNumber = "555 123 45 67", isLoginEnabled = true),
             onIntent = {},
         )
     }

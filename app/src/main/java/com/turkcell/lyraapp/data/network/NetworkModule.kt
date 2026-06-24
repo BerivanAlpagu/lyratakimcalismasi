@@ -13,6 +13,11 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import javax.inject.Singleton
+import com.turkcell.lyraapp.data.local.TokenStore
+import com.turkcell.lyraapp.data.auth.AuthApi
+import com.turkcell.lyraapp.data.me.MeApi
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 /**
  * Ağ katmanı bağımlılıklarını sağlar: [Json], [OkHttpClient], [Retrofit] ve API arayüzleri.
@@ -35,12 +40,21 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideTokenStore(@ApplicationContext context: Context): TokenStore = TokenStore(context)
+
+    @Provides
+    @Singleton
+    fun provideAuthInterceptor(tokenStore: TokenStore): AuthInterceptor = AuthInterceptor(tokenStore)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = HttpLoggingInterceptor.Level.BASIC
         }
         return OkHttpClient.Builder()
             .addInterceptor(logging)
+            .addInterceptor(authInterceptor)
             .build()
     }
 
@@ -60,4 +74,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePlaylistsApi(retrofit: Retrofit): PlaylistsApi = retrofit.create(PlaylistsApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideMeApi(retrofit: Retrofit): MeApi = retrofit.create(MeApi::class.java)
 }
