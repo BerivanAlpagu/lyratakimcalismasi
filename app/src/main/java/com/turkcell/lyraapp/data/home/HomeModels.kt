@@ -35,6 +35,7 @@ data class HomeSong(
 data class QuickPick(
     val id: String,
     val title: String,
+    val artist: String,
     val artworkStartColor: Long,
     val artworkEndColor: Long,
 )

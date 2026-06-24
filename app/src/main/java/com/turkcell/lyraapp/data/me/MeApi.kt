@@ -10,6 +10,9 @@ import retrofit2.http.Query
 
 interface MeApi {
 
+    @GET("api/v1/me")
+    suspend fun getMe(): MeResponseDto
+
     @POST("api/v1/me/update-informations")
     suspend fun updateInformations(@Body request: UpdateInformationsDto): UpdateInformationsResponseDto
 
@@ -18,7 +21,15 @@ interface MeApi {
 
     @GET("api/v1/me/recently-played")
     suspend fun getRecentlyPlayed(@Query("limit") limit: Int? = null): MeSongsResponseDto
+
+    @POST("api/v1/me/plays")
+    suspend fun recordPlay(@Body request: RecordPlayDto)
 }
+
+@Serializable
+data class RecordPlayDto(
+    val songId: String
+)
 
 @Serializable
 data class UpdateInformationsDto(
@@ -35,4 +46,9 @@ data class UpdateInformationsResponseDto(
 @Serializable
 data class MeSongsResponseDto(
     val data: List<SongDto>
+)
+
+@Serializable
+data class MeResponseDto(
+    val data: UserDto
 )
