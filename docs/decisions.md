@@ -159,4 +159,20 @@
 
 - Paket Ayrımı: PlaylistDetail ekranı `ui/playlist_detail/` altındadır. Clean Architecture katman ayrımı korunmuştur.
 
-- Sebep: Clean Architecture katman ayrımı, MVI veri akışı ve Premium kullanıcı deneyimi tasarımı (bkz. agents.md §2.4).
+- Sebep: Clean Architecture katman ayrımı, MVI veri akışı ve Premium kullanıcı deneyimi tasarımı (bkz. agents.md §2.4).
+
+
+### Yeni Çalma Listesi Oluşturma Ekranı (Full-Screen MVI)
+
+- Karar: Mevcut `LibraryScreen` içerisindeki `CreatePlaylistDialog` (pop-up) kaldırılmış ve yerine OpenAPI şemasındaki `GET /api/v1/songs` endpoint'ini kullanan, şarkı seçilebilen tam sayfa (full-screen) `CreatePlaylistScreen` eklenmiştir.
+
+- Son Güncelleme Tarihi: 24.06.2026
+
+- Dosya Dökümü:
+  - `data/me/MeApi.kt` — Playlist'e şarkı ekleme (`POST`) ve silme (`DELETE`) metotları eklendi.
+  - `data/library/LibraryRepository.kt` & `DefaultLibraryRepository.kt` — `getAllSongs`, `addSongToPlaylist` ve `removeSongFromPlaylist` metodları eklendi.
+  - `ui/create_playlist/` — Yeni `CreatePlaylistContract.kt`, `CreatePlaylistViewModel.kt` ve `CreatePlaylistScreen.kt` dosyaları ile MVI mimarisinde tam sayfa oluşturma ekranı.
+  - `ui/library/` — `LibraryScreen.kt`, `LibraryViewModel.kt` ve `LibraryContract.kt` üzerindeki eski dialog yapısı silinip yeni ekrana yönlendirme yapıldı.
+  - `ui/navigation/` — `LyraDestination.kt` ve `LyraNavHost.kt` navigasyon tanımlamaları güncellendi.
+
+- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).

@@ -6,8 +6,10 @@ import com.turkcell.lyraapp.data.playlists.PlaylistsResponseDto
 import com.turkcell.lyraapp.data.songs.SongDto
 import kotlinx.serialization.Serializable
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 
 interface MeApi {
@@ -32,6 +34,23 @@ interface MeApi {
 
     @POST("api/v1/me/playlists")
     suspend fun createPlaylist(@Body request: CreatePlaylistRequest): CreatePlaylistResponse
+
+    @POST("api/v1/me/playlists/{id}/tracks")
+    suspend fun addSongToPlaylist(
+        @Path("id") playlistId: String,
+        @Body request: AddSongRequest,
+    ): AddSongResponse
+
+    @DELETE("api/v1/me/playlists/{id}/tracks/{songId}")
+    suspend fun removeSongFromPlaylist(
+        @Path("id") playlistId: String,
+        @Path("songId") songId: String,
+    ): RemoveSongResponse
+
+    @DELETE("api/v1/me/playlists/{id}")
+    suspend fun deletePlaylist(
+        @Path("id") playlistId: String,
+    ): retrofit2.Response<Unit>
 }
 
 @Serializable
@@ -70,4 +89,29 @@ data class CreatePlaylistRequest(
 @Serializable
 data class CreatePlaylistResponse(
     val data: PlaylistDto
+)
+
+@Serializable
+data class AddSongRequest(
+    val songId: String
+)
+
+@Serializable
+data class AddSongResponse(
+    val data: AddSongData
+)
+
+@Serializable
+data class AddSongData(
+    val added: Boolean
+)
+
+@Serializable
+data class RemoveSongResponse(
+    val data: RemoveSongData
+)
+
+@Serializable
+data class RemoveSongData(
+    val removed: Boolean
 )

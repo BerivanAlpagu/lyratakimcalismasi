@@ -8,10 +8,7 @@ package com.turkcell.lyraapp.ui.library
  */
 
 /**
- * Ekranın gözlemlenebilir tüm durumu. Tek bir immutable kaynak (single source of truth).
- *
- * [playlists] boş liste ile başlar; [isLoading] ilk yükleme sırasında `true` olur.
- * [errorMessage] yalnızca hata durumunda dolu olur ve yükleme başlarken temizlenir.
+ * Kütüphane sekmesi.
  */
 enum class LibraryTab {
     PLAYLISTS,
@@ -32,8 +29,6 @@ data class LibraryUiState(
     val searchQuery: String = "",
     val isSearchActive: Boolean = false,
     val isLoading: Boolean = false,
-    val isCreatingPlaylist: Boolean = false,
-    val createDialogVisible: Boolean = false,
     val errorMessage: String? = null,
 )
 
@@ -71,14 +66,8 @@ sealed interface LibraryIntent {
     /** Arama barı açılıp kapandığında. */
     data object ToggleSearch : LibraryIntent
 
-    /** Yeni çalma listesi oluşturma diyaloğunu açar. */
-    data object ShowCreateDialog : LibraryIntent
-
-    /** Yeni çalma listesi oluşturma diyaloğunu kapatır. */
-    data object DismissCreateDialog : LibraryIntent
-
-    /** Çalma listesi oluşturulmasını onaylar. */
-    data class ConfirmCreatePlaylist(val name: String, val description: String?) : LibraryIntent
+    /** Yeni çalma listesi oluşturma ekranına geçiş. */
+    data object CreatePlaylistClicked : LibraryIntent
 }
 
 /**
@@ -92,4 +81,7 @@ sealed interface LibraryEffect {
 
     /** Çalma listesi detay ekranına geçiş. */
     data class NavigateToPlaylistDetail(val playlistId: String) : LibraryEffect
+
+    /** Yeni çalma listesi oluşturma ekranına geçiş. */
+    data object NavigateToCreatePlaylist : LibraryEffect
 }

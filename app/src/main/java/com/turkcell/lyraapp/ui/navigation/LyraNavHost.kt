@@ -124,6 +124,9 @@ fun LyraNavHost(
                 LibraryRoute(
                     onNavigateToPlaylistDetail = { playlistId ->
                         navController.navigate("${LyraDestination.PlaylistDetail.route}/$playlistId")
+                    },
+                    onNavigateToCreatePlaylist = {
+                        navController.navigate(LyraDestination.CreatePlaylist.route)
                     }
                 )
             }
@@ -137,6 +140,12 @@ fun LyraNavHost(
                     onSongClick = { songId, title, artist ->
                         navController.navigate(playerRoute(songId, title, artist))
                     }
+                )
+            }
+
+            composable(LyraDestination.CreatePlaylist.route) {
+                com.turkcell.lyraapp.ui.create_playlist.CreatePlaylistRoute(
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
