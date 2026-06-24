@@ -46,6 +46,16 @@ class PlaylistDetailViewModel @Inject constructor(
             is PlaylistDetailIntent.RetryClicked -> loadDetail(playlistId)
             is PlaylistDetailIntent.BackClicked -> navigateBack()
             is PlaylistDetailIntent.SongClicked -> playSong(intent.songId, intent.title, intent.artist)
+            is PlaylistDetailIntent.AddSongClicked -> {
+                _uiState.update { it.copy(isAddSongDialogVisible = true) }
+                loadAllSongs()
+            }
+            is PlaylistDetailIntent.DismissAddSongDialog -> {
+                _uiState.update { it.copy(isAddSongDialogVisible = false) }
+            }
+            is PlaylistDetailIntent.ConfirmAddSong -> {
+                addSongToPlaylist(intent.songId)
+            }
         }
     }
 
@@ -61,6 +71,44 @@ class PlaylistDetailViewModel @Inject constructor(
                     _effect.send(
                         PlaylistDetailEffect.ShowError(
                             error.message ?: "Çalma listesi detayları yüklenemedi."
+                        )
+                    )
+                }
+        }
+    }
+
+    private fun loadAllSongs() {
+        if (_uiState.value.allSongs.isNotEmpty()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingSongs = true) }
+            libraryRepository.getAllSongs()
+                .onSuccess { songs ->
+                    _uiState.update { it.copy(isLoadingSongs = false, allSongs = songs) }
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isLoadingSongs = false) }
+                    _effect.send(
+                        PlaylistDetailEffect.ShowError(
+                            error.message ?: "Şarkılar yüklenemedi."
+                        )
+                    )
+                }
+        }
+    }
+
+    private fun addSongToPlaylist(songId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, isAddSongDialogVisible = false) }
+            libraryRepository.addSongToPlaylist(playlistId, songId)
+                .onSuccess {
+                    loadDetail(playlistId)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(isLoading = false) }
+                    _effect.send(
+                        PlaylistDetailEffect.ShowError(
+                            error.message ?: "Şarkı eklenemedi."
                         )
                     )
                 }

@@ -2,6 +2,7 @@ package com.turkcell.lyraapp.data.library
 
 import com.turkcell.lyraapp.data.playlists.PlaylistDto
 import com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto
+import com.turkcell.lyraapp.data.songs.SongDto
 
 /**
  * Kütüphane özelliğinin veri sözleşmesi.
@@ -35,4 +36,19 @@ interface LibraryRepository {
      * Belirli bir çalma listesinin detayını ve içindeki şarkıları getirir.
      */
     suspend fun getPlaylistDetail(id: String): Result<PlaylistWithSongsDto>
+
+    /**
+     * Şarkı kataloğundan tüm şarkıları getirir (`GET /api/v1/songs`).
+     */
+    suspend fun getAllSongs(): Result<List<SongDto>>
+
+    /**
+     * Belirtilen çalma listesine şarkı ekler (`POST /api/v1/me/playlists/{id}/tracks`).
+     */
+    suspend fun addSongToPlaylist(playlistId: String, songId: String): Result<Unit>
+
+    /**
+     * Belirtilen çalma listesinden şarkı siler (`DELETE /api/v1/me/playlists/{id}/tracks/{songId}`).
+     */
+    suspend fun removeSongFromPlaylist(playlistId: String, songId: String): Result<Unit>
 }

@@ -61,14 +61,10 @@ class LibraryViewModel @Inject constructor(
                 }
                 filterPlaylists()
             }
-            is LibraryIntent.ShowCreateDialog -> {
-                _uiState.update { it.copy(createDialogVisible = true) }
-            }
-            is LibraryIntent.DismissCreateDialog -> {
-                _uiState.update { it.copy(createDialogVisible = false) }
-            }
-            is LibraryIntent.ConfirmCreatePlaylist -> {
-                createPlaylist(intent.name, intent.description)
+            is LibraryIntent.CreatePlaylistClicked -> {
+                viewModelScope.launch {
+                    _effect.send(LibraryEffect.NavigateToCreatePlaylist)
+                }
             }
         }
     }
@@ -114,37 +110,6 @@ class LibraryViewModel @Inject constructor(
                 state.playlists.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
             }
             state.copy(filteredPlaylists = filtered)
-        }
-    }
-
-    private fun createPlaylist(name: String, description: String?) {
-        if (name.isBlank()) {
-            viewModelScope.launch {
-                _effect.send(LibraryEffect.ShowError("Çalma listesi ismi boş olamaz."))
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.update { it.copy(isCreatingPlaylist = true) }
-            libraryRepository.createPlaylist(name, description)
-                .onSuccess {
-                    _uiState.update { 
-                        it.copy(
-                            isCreatingPlaylist = false,
-                            createDialogVisible = false
-                        )
-                    }
-                    loadPlaylists()
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isCreatingPlaylist = false) }
-                    _effect.send(
-                        LibraryEffect.ShowError(
-                            error.message ?: "Çalma listesi oluşturulamadı."
-                        )
-                    )
-                }
         }
     }
 

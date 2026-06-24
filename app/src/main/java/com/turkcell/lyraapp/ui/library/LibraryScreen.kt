@@ -38,10 +38,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,11 +64,25 @@ import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 @Composable
 fun LibraryRoute(
     onNavigateToPlaylistDetail: (String) -> Unit,
+    onNavigateToCreatePlaylist: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.onIntent(LibraryIntent.LoadPlaylists)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
@@ -74,6 +92,10 @@ fun LibraryRoute(
 
                 is LibraryEffect.NavigateToPlaylistDetail -> {
                     onNavigateToPlaylistDetail(effect.playlistId)
+                }
+
+                is LibraryEffect.NavigateToCreatePlaylist -> {
+                    onNavigateToCreatePlaylist()
                 }
             }
         }
@@ -173,15 +195,7 @@ fun LibraryScreen(
         }
     }
 
-    if (state.createDialogVisible) {
-        CreatePlaylistDialog(
-            isCreating = state.isCreatingPlaylist,
-            onDismiss = { onIntent(LibraryIntent.DismissCreateDialog) },
-            onConfirm = { name, description ->
-                onIntent(LibraryIntent.ConfirmCreatePlaylist(name, description))
-            }
-        )
-    }
+
 }
 
 @Composable
@@ -246,7 +260,7 @@ private fun LibraryTopBar(
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                IconButton(onClick = { onIntent(LibraryIntent.ShowCreateDialog) }) {
+                IconButton(onClick = { onIntent(LibraryIntent.CreatePlaylistClicked) }) {
                     Icon(
                         imageVector = LyraIcons.Add,
                         contentDescription = "Yeni Çalma Listesi",
@@ -485,81 +499,4 @@ private fun ErrorState(
     }
 }
 
-@Composable
-private fun CreatePlaylistDialog(
-    isCreating: Boolean,
-    onDismiss: () -> Unit,
-    onConfirm: (name: String, description: String?) -> Unit,
-) {
-    var name by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
 
-    AlertDialog(
-        onDismissRequest = { if (!isCreating) onDismiss() },
-        title = {
-            Text(
-                text = "Yeni Çalma Listesi",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-        },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("İsim") },
-                    placeholder = { Text("Çalma listesi adı") },
-                    singleLine = true,
-                    enabled = !isCreating,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    )
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Açıklama (İsteğe bağlı)") },
-                    placeholder = { Text("Açıklama ekleyin") },
-                    singleLine = false,
-                    maxLines = 3,
-                    enabled = !isCreating,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    )
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onConfirm(name, description.takeIf { it.isNotBlank() }) },
-                enabled = name.isNotBlank() && !isCreating,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
-            ) {
-                if (isCreating) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                } else {
-                    Text("Oluştur")
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = onDismiss,
-                enabled = !isCreating
-            ) {
-                Text("İptal")
-            }
-        }
-    )
-}

@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -130,7 +133,7 @@ fun PlaylistDetailScreen(
                                 name = playlist.name,
                                 description = playlist.description,
                                 songCount = playlist.songs.size,
-                                totalDurationMs = 0L
+                                totalDurationMs = playlist.songs.sumOf { it.durationMs ?: 0L }
                             )
                         }
 
@@ -142,6 +145,9 @@ fun PlaylistDetailScreen(
                                         val first = playlist.songs.first()
                                         onIntent(PlaylistDetailIntent.SongClicked(first.id, first.title, first.artist))
                                     }
+                                },
+                                onAddClick = {
+                                    onIntent(PlaylistDetailIntent.AddSongClicked)
                                 }
                             )
                         }
@@ -165,6 +171,19 @@ fun PlaylistDetailScreen(
                         }
                     }
                 }
+            }
+
+            if (state.isAddSongDialogVisible) {
+                AddSongDialog(
+                    songs = state.allSongs.filter { song ->
+                        state.playlist?.songs?.none { it.id == song.id } ?: true
+                    },
+                    isLoading = state.isLoadingSongs,
+                    onDismiss = { onIntent(PlaylistDetailIntent.DismissAddSongDialog) },
+                    onSongSelected = { songId ->
+                        onIntent(PlaylistDetailIntent.ConfirmAddSong(songId))
+                    }
+                )
             }
 
             if (state.errorMessage != null && !state.isLoading && state.playlist == null) {
@@ -295,7 +314,8 @@ private fun PlaylistHeader(
 
 @Composable
 private fun ActionRow(
-    onPlayClick: () -> Unit
+    onPlayClick: () -> Unit,
+    onAddClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -321,7 +341,7 @@ private fun ActionRow(
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
-        IconButton(onClick = { }) {
+        IconButton(onClick = onAddClick) {
             Icon(
                 imageVector = LyraIcons.Add,
                 contentDescription = "Ekle",
@@ -402,7 +422,7 @@ private fun SongItem(
         }
         // Duration
         Text(
-            text = formatSongDuration(0L),
+            text = formatSongDuration(song.durationMs ?: 0L),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
@@ -481,4 +501,90 @@ private fun formatPlaylistDuration(ms: Long): String {
         val minutes = totalMinutes % 60L
         "$hours saat $minutes dakika"
     }
+}
+
+@Composable
+private fun AddSongDialog(
+    songs: List<SongDto>,
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onSongSelected: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Çalma Listesine Şarkı Ekle",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(36.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (songs.isEmpty()) {
+                    Text(
+                        text = "Eklenebilecek şarkı bulunamadı.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(songs) { song ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onSongSelected(song.id) }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SongArtwork(songId = song.id)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = song.title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = song.artist,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Icon(
+                                    imageVector = LyraIcons.Add,
+                                    contentDescription = "Ekle",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Kapat")
+            }
+        }
+    )
 }

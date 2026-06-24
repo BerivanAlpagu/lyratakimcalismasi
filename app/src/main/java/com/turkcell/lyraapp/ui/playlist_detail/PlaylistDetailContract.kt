@@ -1,6 +1,7 @@
 package com.turkcell.lyraapp.ui.playlist_detail
 
 import com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto
+import com.turkcell.lyraapp.data.songs.SongDto
 
 /**
  * Çalma Listesi Detay Ekranının MVI Sözleşmesi.
@@ -9,6 +10,9 @@ data class PlaylistDetailUiState(
     val playlist: PlaylistWithSongsDto? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val allSongs: List<SongDto> = emptyList(),
+    val isAddSongDialogVisible: Boolean = false,
+    val isLoadingSongs: Boolean = false,
 )
 
 sealed interface PlaylistDetailIntent {
@@ -23,6 +27,15 @@ sealed interface PlaylistDetailIntent {
 
     /** Bir şarkıya tıklanıp oynatılmak istendiğinde. */
     data class SongClicked(val songId: String, val title: String, val artist: String) : PlaylistDetailIntent
+
+    /** Playlist'e şarkı ekleme butonuna basıldığında. */
+    data object AddSongClicked : PlaylistDetailIntent
+
+    /** Şarkı ekleme diyaloğu kapatıldığında. */
+    data object DismissAddSongDialog : PlaylistDetailIntent
+
+    /** Diyalogdan bir şarkı seçildiğinde. */
+    data class ConfirmAddSong(val songId: String) : PlaylistDetailIntent
 }
 
 sealed interface PlaylistDetailEffect {
