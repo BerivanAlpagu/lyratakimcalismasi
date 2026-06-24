@@ -3,6 +3,8 @@ package com.turkcell.lyraapp.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.home.HomeRepository
+import com.turkcell.lyraapp.data.home.HomeSong
+import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -15,16 +17,10 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
 
-/**
- * Home ekranının ViewModel'i (bkz. mvi-viewmodel-rules.md).
- *
- * Besleme, ekran açılışında bir kez yüklenir; başarısızlıkta [HomeIntent.Retry] ile
- * yeniden denenir. Selamlama metni günün saatinden türetilir (durum sahibi UI değil,
- * ViewModel'dir).
- */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val homeRepository: HomeRepository,
+    private val globalPlayerManager: GlobalPlayerManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(greeting = greetingForNow()))
@@ -35,12 +31,42 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadFeed()
+
+        // Observe global player state
+        viewModelScope.launch {
+            globalPlayerManager.playerState.collect { playerState ->
+                _uiState.update { currentUiState ->
+                    currentUiState.copy(
+                        nowPlayingSong = playerState.songId?.let {
+                            HomeSong(
+                                id = it,
+                                title = playerState.title,
+                                artist = playerState.artist,
+                                artworkStartColor = playerState.artworkStartColor,
+                                artworkEndColor = playerState.artworkEndColor
+                            )
+                        },
+                        isPlaying = playerState.isPlaying
+                    )
+                }
+            }
+        }
     }
 
     fun onIntent(intent: HomeIntent) {
         when (intent) {
             is HomeIntent.Retry -> loadFeed()
+            is HomeIntent.TogglePlayPause -> {
+                globalPlayerManager.togglePlayPause()
+            }
             is HomeIntent.SongSelected -> viewModelScope.launch {
+                globalPlayerManager.playSong(
+                    songId = intent.song.id,
+                    title = intent.song.title,
+                    artist = intent.song.artist,
+                    artworkStartColor = intent.song.artworkStartColor,
+                    artworkEndColor = intent.song.artworkEndColor
+                )
                 _effect.send(
                     HomeEffect.NavigateToPlayer(
                         songId = intent.song.id,

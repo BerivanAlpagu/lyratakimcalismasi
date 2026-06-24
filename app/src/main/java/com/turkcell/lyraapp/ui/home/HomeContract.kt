@@ -19,6 +19,8 @@ data class HomeUiState(
     val quickPicks: List<QuickPick> = emptyList(),
     val recentlyPlayed: List<RecentlyPlayed> = emptyList(),
     val playlistsForYou: List<PlaylistForYou> = emptyList(),
+    val nowPlayingSong: HomeSong? = null,
+    val isPlaying: Boolean = false,
 )
 
 sealed interface HomeIntent {
@@ -27,6 +29,9 @@ sealed interface HomeIntent {
 
     /** Kullanıcı bir şarkı satırına tıkladı; oynatıcıya yönlendirilecek. */
     data class SongSelected(val song: HomeSong) : HomeIntent
+
+    /** Alt bardaki Play/Pause butonuna tıklandı */
+    data object TogglePlayPause : HomeIntent
 }
 
 sealed interface HomeEffect {

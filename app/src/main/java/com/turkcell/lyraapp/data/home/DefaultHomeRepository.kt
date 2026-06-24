@@ -1,35 +1,83 @@
 package com.turkcell.lyraapp.data.home
 
+import com.turkcell.lyraapp.data.me.MeApi
+import com.turkcell.lyraapp.data.playlists.PlaylistsApi
 import com.turkcell.lyraapp.data.songs.SongDto
 import com.turkcell.lyraapp.data.songs.SongsApi
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import javax.inject.Inject
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/**
- * [HomeRepository]'nin geçiş dönemi implementasyonu.
- *
- * "Şarkılar" bölümünü gerçek API'dan ([SongsApi]) besler; diğer bölümler (quickPicks,
- * recentlyPlayed, playlists) backend hazır olmadığından statik kalır. Şarkı kapakları için
- * API'da görsel olmadığından her şarkıya [id]'sinden türetilen sabit bir gradyan renk çifti
- * atanır (bkz. docs/decisions.md — Şarkı Listesi API Entegrasyonu).
- *
- * Şarkı çağrısı başarısız olursa tüm besleme `Result.failure` döner; UI mevcut "Tekrar dene"
- * akışını yeniden kullanır.
- */
 class DefaultHomeRepository @Inject constructor(
     private val songsApi: SongsApi,
+    private val meApi: MeApi,
+    private val playlistsApi: PlaylistsApi,
 ) : HomeRepository {
 
     override suspend fun getHomeFeed(): Result<HomeFeed> = runCatching {
-        val songs = songsApi.getSongs(limit = SONGS_PAGE_SIZE).data.map { it.toHomeSong() }
-        HomeFeed(
-            userInitials = USER_INITIALS,
-            songs = songs,
-            quickPicks = QUICK_PICKS,
-            recentlyPlayed = RECENTLY_PLAYED,
-            playlistsForYou = PLAYLISTS_FOR_YOU,
-        )
+        coroutineScope {
+            val meDeferred = async { meApi.getMe() }
+            val songsDeferred = async { songsApi.getSongs(limit = SONGS_PAGE_SIZE) }
+            val forYouDeferred = async { meApi.getForYou(limit = 6) }
+            val recentlyPlayedDeferred = async { meApi.getRecentlyPlayed(limit = 10) }
+            val playlistsDeferred = async { playlistsApi.getPlaylists() }
+
+            val meResponse = meDeferred.await()
+            val songsResponse = songsDeferred.await()
+            val forYouResponse = forYouDeferred.await()
+            val recentlyPlayedResponse = recentlyPlayedDeferred.await()
+            val playlistsResponse = playlistsDeferred.await()
+
+            val userInitials = meResponse.data.let { user ->
+                val first = user.firstName?.firstOrNull()?.uppercase() ?: ""
+                val last = user.lastName?.firstOrNull()?.uppercase() ?: ""
+                "$first$last"
+            }
+
+            val songs = songsResponse.data.map { it.toHomeSong() }
+            
+            val quickPicks = forYouResponse.data.map { song ->
+                val (start, end) = artworkColorsFor(song.id)
+                QuickPick(
+                    id = song.id,
+                    title = song.title,
+                    artist = song.artist,
+                    artworkStartColor = start,
+                    artworkEndColor = end
+                )
+            }
+
+            val recentlyPlayed = recentlyPlayedResponse.data.map { song ->
+                val (start, end) = artworkColorsFor(song.id)
+                RecentlyPlayed(
+                    id = song.id,
+                    title = song.title,
+                    subtitle = song.artist,
+                    artworkStartColor = start,
+                    artworkEndColor = end
+                )
+            }
+
+            val playlistsForYou = playlistsResponse.data.map { playlist ->
+                val (start, end) = artworkColorsFor(playlist.id)
+                PlaylistForYou(
+                    id = playlist.id,
+                    title = playlist.name,
+                    artworkStartColor = start,
+                    artworkEndColor = end
+                )
+            }
+
+            HomeFeed(
+                userInitials = if (userInitials.isNotBlank()) userInitials else "U",
+                songs = songs,
+                quickPicks = quickPicks,
+                recentlyPlayed = recentlyPlayed,
+                playlistsForYou = playlistsForYou,
+            )
+        }
     }
 
     private fun SongDto.toHomeSong(): HomeSong {
@@ -45,13 +93,7 @@ class DefaultHomeRepository @Inject constructor(
 
     private companion object {
         const val SONGS_PAGE_SIZE = 20
-        const val USER_INITIALS = "ZK"
 
-        /**
-         * Şarkı [id]'sinden deterministik bir gradyan renk çifti (başlangıç/bitiş, ARGB) üretir.
-         * Ton (hue) id hash'inden türetilir; başlangıç açık, bitiş koyu tonludur. Android'e
-         * bağımlı olmamak için HSL→RGB dönüşümü elle yapılır.
-         */
         fun artworkColorsFor(id: String): Pair<Long, Long> {
             val hue = (abs(id.hashCode()) % 360).toFloat()
             val start = hslToArgb(hue, saturation = 0.50f, lightness = 0.55f)
@@ -77,26 +119,5 @@ class DefaultHomeRepository @Inject constructor(
             val b = ((b1 + m) * 255f).roundToInt().coerceIn(0, 255).toLong()
             return (0xFFL shl 24) or (r shl 16) or (g shl 8) or b
         }
-
-        val QUICK_PICKS = listOf(
-            QuickPick("qp-1", "Gece Sürüşü", 0xFF8B6FB8, 0xFF4A3D6B),
-            QuickPick("qp-2", "Sabah Kahvesi", 0xFF7C83D9, 0xFF3E4486),
-            QuickPick("qp-3", "Neon Sokaklar", 0xFFD98E4A, 0xFF8A5526),
-            QuickPick("qp-4", "Odaklan", 0xFF4AC2A8, 0xFF1F6E5C),
-            QuickPick("qp-5", "Derin Mavi", 0xFF6FBF5A, 0xFF356B2A),
-            QuickPick("qp-6", "Yaz Anıları", 0xFF5AAFC9, 0xFF2A5F73),
-        )
-
-        val RECENTLY_PLAYED = listOf(
-            RecentlyPlayed("rp-1", "Neon Sokaklar", "Şehir Işıkları", 0xFFD98E4A, 0xFF8A5526),
-            RecentlyPlayed("rp-2", "Derin Mavi", "Okyanus", 0xFF6FBF5A, 0xFF356B2A),
-            RecentlyPlayed("rp-3", "Yıldız Tozu", "Polaris", 0xFF3D5A80, 0xFF1B2A45),
-        )
-
-        val PLAYLISTS_FOR_YOU = listOf(
-            PlaylistForYou("pl-1", "Haftalık Keşif", 0xFF9B7FC4, 0xFF5A4480),
-            PlaylistForYou("pl-2", "Sakin Akşamlar", 0xFF6B5FB8, 0xFF3A3270),
-            PlaylistForYou("pl-3", "Enerji Ver", 0xFF3FAE9C, 0xFF1E5D52),
-        )
     }
 }
