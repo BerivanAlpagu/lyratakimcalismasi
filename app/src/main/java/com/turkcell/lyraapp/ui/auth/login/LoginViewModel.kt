@@ -34,10 +34,7 @@ class LoginViewModel @Inject constructor(
     fun onIntent(intent: LoginIntent) {
         when (intent) {
             is LoginIntent.PhoneNumberChanged -> updateForm { it.copy(phoneNumber = intent.value) }
-            is LoginIntent.PasswordChanged -> updateForm { it.copy(password = intent.value) }
-            is LoginIntent.TogglePasswordVisibility -> _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
             is LoginIntent.Submit -> submit()
-            is LoginIntent.RegisterClicked -> viewModelScope.launch { _effect.send(LoginEffect.NavigateToRegister) }
         }
     }
 
@@ -55,13 +52,15 @@ class LoginViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = authRepository.login(state.phoneNumber, state.password)
+            val result = authRepository.requestOtp(state.phoneNumber)
             _uiState.update { it.copy(isLoading = false) }
 
             result
-                .onSuccess { _effect.send(LoginEffect.NavigateToHome) }
+                .onSuccess { 
+                    _effect.send(LoginEffect.NavigateToOtp(state.phoneNumber))
+                }
                 .onFailure { error ->
-                    _effect.send(LoginEffect.ShowError(error.message ?: "Giriş başarısız."))
+                    _effect.send(LoginEffect.ShowError(error.message ?: "İstek başarısız."))
                 }
         }
     }
@@ -69,4 +68,4 @@ class LoginViewModel @Inject constructor(
 
 /** Giriş butonunun aktif olması için minimal validasyon. */
 private fun LoginUiState.isFormValid(): Boolean =
-    phoneNumber.isNotBlank() && password.isNotBlank()
+    phoneNumber.isNotBlank() && phoneNumber.length >= 10
