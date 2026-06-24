@@ -14,9 +14,15 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.turkcell.lyraapp.data.local.SettingsStore
+import com.turkcell.lyraapp.data.local.TokenStore
+import kotlinx.coroutines.flow.collectLatest
+
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val repository: ProfileRepository
+    private val repository: ProfileRepository,
+    private val settingsStore: SettingsStore,
+    private val tokenStore: TokenStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
@@ -27,12 +33,21 @@ class ProfileViewModel @Inject constructor(
 
     init {
         handleIntent(ProfileIntent.LoadProfile)
+        viewModelScope.launch {
+            settingsStore.isDarkMode.collectLatest { isDark ->
+                _uiState.update { it.copy(isDarkMode = isDark ?: false) }
+            }
+        }
     }
 
     fun handleIntent(intent: ProfileIntent) {
         when (intent) {
             is ProfileIntent.LoadProfile -> loadProfile()
             is ProfileIntent.LogoutClicked -> performLogout()
+            is ProfileIntent.ThemeChanged -> setTheme(intent.isDark)
+            is ProfileIntent.EditProfileClicked -> _uiState.update { it.copy(showEditSheet = true) }
+            is ProfileIntent.DismissEditSheet -> _uiState.update { it.copy(showEditSheet = false) }
+            is ProfileIntent.SaveProfile -> saveProfile(intent.firstName, intent.lastName, intent.birthDate)
         }
     }
 
@@ -53,9 +68,29 @@ class ProfileViewModel @Inject constructor(
 
     private fun performLogout() {
         viewModelScope.launch {
-            // Logout işlemleri burada yapılabilir (örneğin AuthRepository üzerinden token silme)
-            // Bu görev kapsamı dışı olduğu için direkt effect gönderiyoruz.
+            tokenStore.clear()
             _effect.emit(ProfileEffect.NavigateToLogin)
+        }
+    }
+
+    private fun setTheme(isDark: Boolean) {
+        viewModelScope.launch {
+            settingsStore.setDarkMode(isDark)
+        }
+    }
+
+    private fun saveProfile(firstName: String, lastName: String, birthDate: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null, showEditSheet = false) }
+            repository.updateProfile(firstName, lastName, birthDate)
+                .onSuccess { profile ->
+                    _uiState.update { it.copy(profile = profile, isLoading = false) }
+                }
+                .onFailure { error ->
+                    val errorMsg = error.message ?: "Güncelleme sırasında bir hata oluştu"
+                    _uiState.update { it.copy(isLoading = false, error = errorMsg) }
+                    _effect.emit(ProfileEffect.ShowError(errorMsg))
+                }
         }
     }
 }
