@@ -23,4 +23,6 @@ enum class LyraDestination(val route: String) {
      * Tam route deseni ve gerçek yol üretimi için bkz. [LyraNavHost].
      */
     Player("player"),
+    PlaylistDetail("playlist_detail"),
+    CreatePlaylist("create_playlist"),
 }

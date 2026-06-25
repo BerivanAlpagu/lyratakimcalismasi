@@ -8,6 +8,15 @@ package com.turkcell.lyraapp.ui.library
  */
 
 /**
+ * Kütüphane sekmesi.
+ */
+enum class LibraryTab {
+    PLAYLISTS,
+    ARTISTS,
+    ALBUMS
+}
+
+/**
  * Ekranın gözlemlenebilir tüm durumu. Tek bir immutable kaynak (single source of truth).
  *
  * [playlists] boş liste ile başlar; [isLoading] ilk yükleme sırasında `true` olur.
@@ -15,6 +24,10 @@ package com.turkcell.lyraapp.ui.library
  */
 data class LibraryUiState(
     val playlists: List<PlaylistUiModel> = emptyList(),
+    val filteredPlaylists: List<PlaylistUiModel> = emptyList(),
+    val selectedTab: LibraryTab = LibraryTab.PLAYLISTS,
+    val searchQuery: String = "",
+    val isSearchActive: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -43,6 +56,18 @@ sealed interface LibraryIntent {
 
     /** Kullanıcı bir çalma listesine tıkladı. */
     data class PlaylistClicked(val playlistId: String) : LibraryIntent
+
+    /** Sekme seçildiğinde. */
+    data class TabSelected(val tab: LibraryTab) : LibraryIntent
+
+    /** Arama sorgusu değiştiğinde. */
+    data class SearchQueryChanged(val query: String) : LibraryIntent
+
+    /** Arama barı açılıp kapandığında. */
+    data object ToggleSearch : LibraryIntent
+
+    /** Yeni çalma listesi oluşturma ekranına geçiş. */
+    data object CreatePlaylistClicked : LibraryIntent
 }
 
 /**
@@ -54,6 +79,9 @@ sealed interface LibraryEffect {
     /** Ağ/ayrıştırma hatası; kullanıcıya gösterilecek mesaj. */
     data class ShowError(val message: String) : LibraryEffect
 
-    /** Çalma listesi detay ekranına geçiş (sonraki faz için hazır). */
+    /** Çalma listesi detay ekranına geçiş. */
     data class NavigateToPlaylistDetail(val playlistId: String) : LibraryEffect
+
+    /** Yeni çalma listesi oluşturma ekranına geçiş. */
+    data object NavigateToCreatePlaylist : LibraryEffect
 }

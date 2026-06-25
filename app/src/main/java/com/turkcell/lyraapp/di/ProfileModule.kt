@@ -1,6 +1,6 @@
 package com.turkcell.lyraapp.di
 
-import com.turkcell.lyraapp.data.profile.FakeProfileRepository
+import com.turkcell.lyraapp.data.profile.DefaultProfileRepository
 import com.turkcell.lyraapp.data.profile.ProfileRepository
 import dagger.Binds
 import dagger.Module
@@ -15,6 +15,6 @@ abstract class ProfileModule {
     @Binds
     @Singleton
     abstract fun bindProfileRepository(
-        fakeRepository: FakeProfileRepository
+        impl: DefaultProfileRepository
     ): ProfileRepository
 }

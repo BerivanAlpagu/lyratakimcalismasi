@@ -254,85 +254,28 @@ object LyraIcons {
             pathData = "M8.59,16.59L13.17,12 8.59,7.41 10,6l6,6 -6,6 -1.41,-1.41z",
         )
     }
-    // ── PlayerScreen — yeni eklenen ikonlar ──
 
-    /** Ekranı aşağı kapatır (Material KeyboardArrowDown / ExpandMore). */
-    val ChevronDown: ImageVector by lazy {
+    /** Artı / Ekle İkonu (Material Add). */
+    val Add: ImageVector by lazy {
         lyraIcon(
-            name = "ChevronDown",
-            pathData = "M7.41,8.59L12,13.17l4.59,-4.58L18,10l-6,6 -6,-6 1.41,-1.41z",
+            name = "Add",
+            pathData = "M19,13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
         )
     }
 
-    /** Karıştır (Material Shuffle). */
-    val Shuffle: ImageVector by lazy {
+    /** İndirme İkonu (Material Download / ArrowDown inside a circle). */
+    val Download: ImageVector by lazy {
         lyraIcon(
-            name = "Shuffle",
-            pathData = "M10.59,9.17L5.41,4 4,5.41l5.17,5.17 1.42,-1.41zM14.5,4l2.04,2.04L4,18.59 " +
-                    "5.41,20 17.96,7.46 20,9.5V4h-5.5zM14.83,13.41l-1.41,1.41 3.13,3.13L14.5,20H20v-5.5l" +
-                    "-2.04,2.04 -3.13,-3.13z",
+            name = "Download",
+            pathData = "M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,17l-4,-4h3V8h2v5h3l-4,4z",
         )
     }
 
-    /** Önceki şarkı (Material SkipPrevious). */
-    val SkipPrevious: ImageVector by lazy {
+    /** Kapat İkonu (Material Close). */
+    val Close: ImageVector by lazy {
         lyraIcon(
-            name = "SkipPrevious",
-            pathData = "M6,6h2v12H6zm3.5,6 8.5,6V6z",
-        )
-    }
-
-    /** Sonraki şarkı (Material SkipNext). */
-    val SkipNext: ImageVector by lazy {
-        lyraIcon(
-            name = "SkipNext",
-            pathData = "M6,18l8.5,-6L6,6v12zM16,6v12h2V6h-2z",
-        )
-    }
-
-    /** Tekrar — tümü (Material Repeat). */
-    val Repeat: ImageVector by lazy {
-        lyraIcon(
-            name = "Repeat",
-            pathData = "M7,7h10v3l4,-4 -4,-4v3H5v6h2V7zM17,17H7v-3l-4,4 4,4v-3h12v-6h-2v5z",
-        )
-    }
-
-    /** Tekrar — tek şarkı (Material RepeatOne). */
-    val RepeatOne: ImageVector by lazy {
-        lyraIcon(
-            name = "RepeatOne",
-            pathData = "M7,7h10v3l4,-4 -4,-4v3H5v6h2V7zM17,17H7v-3l-4,4 4,4v-3h12v-6h-2v5z" +
-                    "M13,15V9h-1l-2,1v1h1.5v4H13z",
-        )
-    }
-
-    /** Cihaza aktar (Material Cast). */
-    val Cast: ImageVector by lazy {
-        lyraIcon(
-            name = "Cast",
-            pathData = "M21,3H3C1.9,3 1,3.9 1,5v3h2V5h18v14h-7v2h7c1.1,0 2,-0.9 2,-2V5C23,3.9 22.1,3 21,3z" +
-                    "M1,18v3h3c0,-1.66 -1.34,-3 -3,-3zM1,14v2c2.76,0 5,2.24 5,5h2C8,17.13 4.87,14 1,14z" +
-                    "M1,10v2c4.97,0 9,4.03 9,9h2C12,15.07 7.07,10 1,10z",
-        )
-    }
-
-    /** Bildirim / Arkaplan çal (Material NotificationsOutlined). */
-    val NotificationsOutlined: ImageVector by lazy {
-        lyraIcon(
-            name = "NotificationsOutlined",
-            pathData = "M12,22c1.1,0 2,-0.9 2,-2h-4c0,1.1 0.9,2 2,2zm6,-6v-5c0,-3.07 -1.64,-5.64 " +
-                    "-4.5,-6.32V4c0,-0.83 -0.67,-1.5 -1.5,-1.5s-1.5,0.67 -1.5,1.5v0.68C7.63,5.36 6,7.92 " +
-                    "6,11v5l-2,2v1h16v-1l-2,-2zm-2,1H8v-6c0,-2.48 1.51,-4.5 4,-4.5s4,2.02 4,4.5v6z",
-        )
-    }
-
-    /** Kuyruk / Sıradaki şarkılar (Material QueueMusic). */
-    val QueueMusic: ImageVector by lazy {
-        lyraIcon(
-            name = "QueueMusic",
-            pathData = "M15,6H3v2h12V6zM15,10H3v2h12v-2zM3,16h8v-2H3v2zM17,6v8.18C16.69,14.07 " +
-                    "16.35,14 16,14c-1.66,0 -3,1.34 -3,3s1.34,3 3,3 3,-1.34 3,-3V8h3V6h-5z",
+            name = "Close",
+            pathData = "M19,6.41L17.59,5 12,10.59 6.41,5 5,6.41 10.59,12 5,17.59 6.41,19 12,13.41 17.59,19 19,17.59 13.41,12z",
         )
     }
 }

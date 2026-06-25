@@ -20,7 +20,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.turkcell.lyraapp.ui.auth.login.LoginRoute
-import com.turkcell.lyraapp.ui.auth.login.LoginRoute
 import com.turkcell.lyraapp.ui.auth.otp.OtpRoute
 import com.turkcell.lyraapp.ui.auth.profile.ProfileCompleteRoute
 import com.turkcell.lyraapp.ui.home.HomeRoute
@@ -121,7 +120,34 @@ fun LyraNavHost(
                 )
             }
 
-            composable(LyraDestination.Library.route) { LibraryRoute() }
+            composable(LyraDestination.Library.route) {
+                LibraryRoute(
+                    onNavigateToPlaylistDetail = { playlistId ->
+                        navController.navigate("${LyraDestination.PlaylistDetail.route}/$playlistId")
+                    },
+                    onNavigateToCreatePlaylist = {
+                        navController.navigate(LyraDestination.CreatePlaylist.route)
+                    }
+                )
+            }
+
+            composable(
+                route = "${LyraDestination.PlaylistDetail.route}/{playlistId}",
+                arguments = listOf(navArgument("playlistId") { type = NavType.StringType })
+            ) {
+                com.turkcell.lyraapp.ui.playlist_detail.PlaylistDetailRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onSongClick = { songId, title, artist ->
+                        navController.navigate(playerRoute(songId, title, artist))
+                    }
+                )
+            }
+
+            composable(LyraDestination.CreatePlaylist.route) {
+                com.turkcell.lyraapp.ui.create_playlist.CreatePlaylistRoute(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
 
             composable(LyraDestination.Favorites.route) {
                 com.turkcell.lyraapp.ui.favorites.FavoritesRoute(

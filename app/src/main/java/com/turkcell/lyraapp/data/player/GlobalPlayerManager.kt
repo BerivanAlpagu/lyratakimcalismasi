@@ -8,6 +8,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.turkcell.lyraapp.data.me.MeApi
 import com.turkcell.lyraapp.data.me.RecordPlayDto
+import com.turkcell.lyraapp.data.songs.SongDto
 import com.turkcell.lyraapp.ui.player.PlayerUiState
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,8 @@ class GlobalPlayerManager @Inject constructor(
     private val player: ExoPlayer = ExoPlayer.Builder(context).build()
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private var pollJob: Job? = null
+    private var playlistQueue: List<SongDto> = emptyList()
+    private var currentSongIndex: Int = -1
 
     // PlayerUiState includes title, artist, isPlaying, duration, etc.
     // To also carry the songId and artwork colors for the Home screen NowPlayingBar,
@@ -58,6 +61,9 @@ class GlobalPlayerManager @Inject constructor(
             if (playbackState == Player.STATE_READY || playbackState == Player.STATE_ENDED) {
                 _playerState.update { it.copy(isLoading = false) }
             }
+            if (playbackState == Player.STATE_ENDED) {
+                playNext()
+            }
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -73,6 +79,23 @@ class GlobalPlayerManager @Inject constructor(
 
     init {
         player.addListener(listener)
+    }
+
+    fun playSongWithQueue(songs: List<SongDto>, startIndex: Int) {
+        playlistQueue = songs
+        currentSongIndex = startIndex
+        if (startIndex in songs.indices) {
+            val song = songs[startIndex]
+            playSong(song.id, song.title, song.artist)
+        }
+    }
+
+    fun playNext() {
+        if (playlistQueue.isNotEmpty() && currentSongIndex < playlistQueue.lastIndex) {
+            currentSongIndex++
+            val nextSong = playlistQueue[currentSongIndex]
+            playSong(nextSong.id, nextSong.title, nextSong.artist)
+        }
     }
 
     fun playSong(songId: String, title: String, artist: String, artworkStartColor: Long = 0L, artworkEndColor: Long = 0L) {

@@ -27,6 +27,7 @@ data class PlaylistDto(
     val name: String,
     val description: String? = null,
     val createdAt: String? = null,
+    val ownerId: String? = null,
 )
 
 /**
@@ -49,5 +50,6 @@ data class PlaylistWithSongsDto(
     val name: String,
     val description: String? = null,
     val createdAt: String? = null,
+    val ownerId: String? = null,
     val songs: List<SongDto> = emptyList(),
 )

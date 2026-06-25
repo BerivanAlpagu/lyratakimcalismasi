@@ -137,26 +137,42 @@
 
 ---
 
-### Library (Kütüphane) Ekranı
+### Library (Kütüphane) ve Playlist Detay Ekranı
 
-- Karar: `GET /api/v1/playlists` ile beslenen gerçek ağ implementasyonu. Kapak resmi API'da bulunmadığından playlist kimliğinden deterministik HSL gradient üretilir.
+- Karar: `GET /api/v1/me/playlists` ve `POST /api/v1/me/playlists` ile beslenen kullanıcının kendi çalma listelerinin yönetimi ve yeni detay ekranı implementasyonu. Kapak resmi API'da bulunmadığından playlist/şarkı kimliğinden deterministik HSL gradient üretilir. Arama işlemi API desteği olmadığından istemci tarafında (client-side) filtreleme yoluyla yapılır.
 
-- Son Güncelleme Tarihi: 18.06.2026
+- Son Güncelleme Tarihi: 24.06.2026
 
 - Dosya Dökümü:
-  - `data/playlists/PlaylistDto.kt` — OpenAPI `Playlist` + `PlaylistWithSongs` DTO'ları ve zarfları.
-  - `data/playlists/PlaylistsApi.kt` — Retrofit interface (`GET /api/v1/playlists`, `GET /api/v1/playlists/{id}`).
-  - `data/library/LibraryRepository.kt` — Repository interface; yalnızca domain/UI katmanına açık.
-  - `data/library/DefaultLibraryRepository.kt` — `PlaylistsApi` bağımlılığıyla gerçek ağ implementasyonu; `runCatching` ile `Result` sarmalayıcı.
-  - `di/LibraryModule.kt` — `@Binds @Singleton`; `DefaultLibraryRepository` → `LibraryRepository`.
-  - `data/network/NetworkModule.kt` — `@Provides providePlaylistsApi` eklendi (mevcut `SongsApi` dokunulmadı).
-  - `ui/library/LibraryContract.kt` — `LibraryUiState`, `PlaylistUiModel`, `LibraryIntent`, `LibraryEffect`.
-  - `ui/library/LibraryViewModel.kt` — `@HiltViewModel`; `init{}` ile otomatik yükleme; DTO→UiModel dönüşümü ViewModel'de.
-  - `ui/library/LibraryScreen.kt` — `LibraryRoute` (stateful) + `LibraryScreen` (stateless); tab filtresi, gradient artwork, loading/empty/error durumları.
-  - `ui/navigation/LyraNavHost.kt` — `PlaceholderScreen("Kütüphane")` → `LibraryRoute()`.
+  - `data/playlists/PlaylistDto.kt` — `ownerId` alanı eklendi.
+  - `data/me/MeApi.kt` — `getMyPlaylists` ve `createPlaylist` Retrofit metotları ile DTO'ları eklendi.
+  - `data/library/LibraryRepository.kt` — Yeni operasyonlar veri sözleşmesine eklendi.
+  - `data/library/DefaultLibraryRepository.kt` — `MeApi` bağımlılığıyla gerçek ağ implementasyonu.
+  - `ui/library/LibraryContract.kt` — Arama, sekme geçişi ve playlist oluşturma diyaloğu için durum, niyet ve etki sözleşmesi.
+  - `ui/library/LibraryViewModel.kt` — Yerel filtreleme ve oluşturma mantığının implementasyonu.
+  - `ui/library/LibraryScreen.kt` — Arama çubuğu, tab filtreleri ve playlist oluşturma AlertDialog içeren UI tasarımı.
+  - `ui/playlist_detail/PlaylistDetailContract.kt` — Detay ekranı MVI sözleşmesi.
+  - `ui/playlist_detail/PlaylistDetailViewModel.kt` — `SavedStateHandle` ile playlistId alıp detayları çeken ViewModel.
+  - `ui/playlist_detail/PlaylistDetailScreen.kt` — 3. tasarıma uygun çalma listesi kapak gradient'ı, aksiyon butonları ve şarkı listesi tasarımı.
+  - `ui/navigation/LyraDestination.kt` ve `LyraNavHost.kt` — PlaylistDetail rotasının navigasyon sistemi entegrasyonu.
+  - `ui/icons/LyraIcons.kt` — `Add`, `Download` ve `Close` vektör ikonları.
 
-- Paket Ayrımı: `PlaylistsApi` yalnızca `data/playlists/`, `LibraryRepository` yalnızca `data/library/` içindedir. ViewModel yalnızca `LibraryRepository` interface'ini görür; API'yi bilmez.
+- Paket Ayrımı: PlaylistDetail ekranı `ui/playlist_detail/` altındadır. Clean Architecture katman ayrımı korunmuştur.
 
-- Playlist detay navigasyonu (sonraki faz): `LibraryEffect.NavigateToPlaylistDetail` hazır bırakıldı. Şimdilik snackbar gösterir; detay ekranı eklendiğinde yalnızca `LyraNavHost` güncellenir.
+- Sebep: Clean Architecture katman ayrımı, MVI veri akışı ve Premium kullanıcı deneyimi tasarımı (bkz. agents.md §2.4).
 
-- Sebep: Clean Architecture katman ayrımı ve MVI sözleşmesiyle tutarlılık (bkz. agents.md §2.4).
+
+### Yeni Çalma Listesi Oluşturma Ekranı (Full-Screen MVI)
+
+- Karar: Mevcut `LibraryScreen` içerisindeki `CreatePlaylistDialog` (pop-up) kaldırılmış ve yerine OpenAPI şemasındaki `GET /api/v1/songs` endpoint'ini kullanan, şarkı seçilebilen tam sayfa (full-screen) `CreatePlaylistScreen` eklenmiştir.
+
+- Son Güncelleme Tarihi: 24.06.2026
+
+- Dosya Dökümü:
+  - `data/me/MeApi.kt` — Playlist'e şarkı ekleme (`POST`) ve silme (`DELETE`) metotları eklendi.
+  - `data/library/LibraryRepository.kt` & `DefaultLibraryRepository.kt` — `getAllSongs`, `addSongToPlaylist` ve `removeSongFromPlaylist` metodları eklendi.
+  - `ui/create_playlist/` — Yeni `CreatePlaylistContract.kt`, `CreatePlaylistViewModel.kt` ve `CreatePlaylistScreen.kt` dosyaları ile MVI mimarisinde tam sayfa oluşturma ekranı.
+  - `ui/library/` — `LibraryScreen.kt`, `LibraryViewModel.kt` ve `LibraryContract.kt` üzerindeki eski dialog yapısı silinip yeni ekrana yönlendirme yapıldı.
+  - `ui/navigation/` — `LyraDestination.kt` ve `LyraNavHost.kt` navigasyon tanımlamaları güncellendi.
+
+- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).

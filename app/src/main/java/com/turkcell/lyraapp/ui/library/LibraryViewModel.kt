@@ -43,6 +43,29 @@ class LibraryViewModel @Inject constructor(
             is LibraryIntent.LoadPlaylists -> loadPlaylists()
             is LibraryIntent.RetryClicked -> loadPlaylists()
             is LibraryIntent.PlaylistClicked -> navigateToDetail(intent.playlistId)
+            is LibraryIntent.TabSelected -> {
+                _uiState.update { it.copy(selectedTab = intent.tab) }
+                filterPlaylists()
+            }
+            is LibraryIntent.SearchQueryChanged -> {
+                _uiState.update { it.copy(searchQuery = intent.query) }
+                filterPlaylists()
+            }
+            is LibraryIntent.ToggleSearch -> {
+                _uiState.update { 
+                    val newSearchActive = !it.isSearchActive
+                    it.copy(
+                        isSearchActive = newSearchActive,
+                        searchQuery = if (newSearchActive) it.searchQuery else ""
+                    )
+                }
+                filterPlaylists()
+            }
+            is LibraryIntent.CreatePlaylistClicked -> {
+                viewModelScope.launch {
+                    _effect.send(LibraryEffect.NavigateToCreatePlaylist)
+                }
+            }
         }
     }
 
@@ -52,7 +75,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
-            val result = libraryRepository.getPlaylists()
+            val result = libraryRepository.getMyPlaylists()
 
             result
                 .onSuccess { dtos ->
@@ -64,15 +87,29 @@ class LibraryViewModel @Inject constructor(
                         )
                     }
                     _uiState.update { it.copy(isLoading = false, playlists = uiModels) }
+                    filterPlaylists()
                 }
                 .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false) }
+                    _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
                     _effect.send(
                         LibraryEffect.ShowError(
                             error.message ?: "Çalma listeleri yüklenemedi."
                         )
                     )
                 }
+        }
+    }
+
+    private fun filterPlaylists() {
+        _uiState.update { state ->
+            val filtered = if (state.selectedTab != LibraryTab.PLAYLISTS) {
+                emptyList()
+            } else if (state.searchQuery.isBlank()) {
+                state.playlists
+            } else {
+                state.playlists.filter { it.name.contains(state.searchQuery, ignoreCase = true) }
+            }
+            state.copy(filteredPlaylists = filtered)
         }
     }
 

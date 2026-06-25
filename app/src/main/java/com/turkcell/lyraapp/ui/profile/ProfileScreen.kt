@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.text.input.KeyboardType
 import com.turkcell.lyraapp.data.profile.UserProfile
 import kotlinx.coroutines.flow.collectLatest
 
@@ -52,12 +53,28 @@ fun ProfileScreen(
     uiState: ProfileUiState,
     onIntent: (ProfileIntent) -> Unit
 ) {
-    val lightBackground = Color(0xFFFFF8F9)
-    val textPrimary = Color(0xFF1D1B20)
-    val textSecondary = Color(0xFF49454F)
+    val containerColor = MaterialTheme.colorScheme.background
+    val textPrimary = MaterialTheme.colorScheme.onBackground
+    val textSecondary = MaterialTheme.colorScheme.onSurfaceVariant
+    val sheetState = rememberModalBottomSheetState()
+    
+    if (uiState.showEditSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { onIntent(ProfileIntent.DismissEditSheet) },
+            sheetState = sheetState
+        ) {
+            EditProfileSheet(
+                profile = uiState.profile,
+                onSave = { first, last, birth ->
+                    onIntent(ProfileIntent.SaveProfile(first, last, birth))
+                },
+                onCancel = { onIntent(ProfileIntent.DismissEditSheet) }
+            )
+        }
+    }
     
     Scaffold(
-        containerColor = lightBackground,
+        containerColor = containerColor,
         topBar = {
             TopAppBar(
                 title = { 
@@ -78,7 +95,7 @@ fun ProfileScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = lightBackground
+                    containerColor = containerColor
                 )
             )
         }
@@ -102,8 +119,10 @@ fun ProfileScreen(
             } else if (uiState.profile != null) {
                 ProfileContent(
                     user = uiState.profile,
+                    isDarkMode = uiState.isDarkMode,
                     textPrimary = textPrimary,
-                    textSecondary = textSecondary
+                    textSecondary = textSecondary,
+                    onIntent = onIntent
                 )
             }
         }
@@ -113,8 +132,10 @@ fun ProfileScreen(
 @Composable
 private fun ProfileContent(
     user: UserProfile,
+    isDarkMode: Boolean,
     textPrimary: Color,
-    textSecondary: Color
+    textSecondary: Color,
+    onIntent: (ProfileIntent) -> Unit
 ) {
     val scrollState = rememberScrollState()
     
@@ -136,7 +157,8 @@ private fun ProfileContent(
                         colors = listOf(Color(0xFF9A5A6D), Color(0xFFD4A373))
                     )
                 )
-                .align(Alignment.CenterHorizontally),
+                .align(Alignment.CenterHorizontally)
+                .clickable { onIntent(ProfileIntent.EditProfileClicked) },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -195,27 +217,29 @@ private fun ProfileContent(
                     .fillMaxWidth()
                     .height(56.dp)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xFFF6E9EB))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(28.dp))
-                        .background(Color(0xFF8B475D))
-                        .clickable { },
+                        .background(if (!isDarkMode) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable { onIntent(ProfileIntent.ThemeChanged(false)) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "☀ Açık", color = Color.White, fontWeight = FontWeight.Medium)
+                    Text(text = "☀ Açık", color = if (!isDarkMode) MaterialTheme.colorScheme.onPrimary else textPrimary, fontWeight = FontWeight.Medium)
                 }
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .clickable { },
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(if (isDarkMode) MaterialTheme.colorScheme.primary else Color.Transparent)
+                        .clickable { onIntent(ProfileIntent.ThemeChanged(true)) },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "☾ Koyu", color = textPrimary)
+                    Text(text = "☾ Koyu", color = if (isDarkMode) MaterialTheme.colorScheme.onPrimary else textPrimary, fontWeight = FontWeight.Medium)
                 }
             }
             
@@ -227,6 +251,16 @@ private fun ProfileContent(
             SettingsItem("Bildirimler", null, textPrimary, textSecondary)
             SettingsItem("Gizlilik", null, textPrimary, textSecondary)
             SettingsItem("Yardım ve destek", null, textPrimary, textSecondary)
+
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            Button(
+                onClick = { onIntent(ProfileIntent.LogoutClicked) },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Text("Çıkış Yap", color = MaterialTheme.colorScheme.onError)
+            }
         }
     }
 }
@@ -278,5 +312,63 @@ private fun SettingsItem(
             tint = textSecondary,
             modifier = Modifier.padding(start = 8.dp)
         )
+    }
+}
+
+@Composable
+fun EditProfileSheet(
+    profile: UserProfile?,
+    onSave: (String, String, String) -> Unit,
+    onCancel: () -> Unit
+) {
+    var firstName by remember { mutableStateOf(profile?.name?.substringBefore(" ") ?: "") }
+    var lastName by remember { mutableStateOf(profile?.name?.substringAfter(" ", "") ?: "") }
+    var birthDate by remember { mutableStateOf("") } // UserProfile'da birthDate tutulmuyor, boş başlıyoruz.
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text("Profili Düzenle", style = MaterialTheme.typography.titleLarge)
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = firstName,
+            onValueChange = { firstName = it },
+            label = { Text("Ad") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = lastName,
+            onValueChange = { lastName = it },
+            label = { Text("Soyad") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = birthDate,
+            onValueChange = { birthDate = it },
+            label = { Text("Doğum Tarihi (YYYY-MM-DD)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
+        ) {
+            TextButton(onClick = onCancel) {
+                Text("İptal")
+            }
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = { onSave(firstName, lastName, birthDate) }) {
+                Text("Kaydet")
+            }
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }
