@@ -18,19 +18,24 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import android.content.Intent
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.turkcell.lyraapp.LyraMediaService
+import androidx.media3.common.MediaMetadata
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class GlobalPlayerManager @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository,
     private val meApi: MeApi
 ) {
-    private val player: ExoPlayer = ExoPlayer.Builder(context).build()
+    /** LyraMediaService tarafından MediaSession'a bağlanmak için erişilebilir. */
+    val player: ExoPlayer = ExoPlayer.Builder(context).build()
     private val scope = CoroutineScope(Dispatchers.Main + Job())
     private var pollJob: Job? = null
     private var playlistQueue: List<SongDto> = emptyList()
@@ -84,6 +89,7 @@ class GlobalPlayerManager @Inject constructor(
     fun playSongWithQueue(songs: List<SongDto>, startIndex: Int) {
         playlistQueue = songs
         currentSongIndex = startIndex
+        updateSkipState()
         if (startIndex in songs.indices) {
             val song = songs[startIndex]
             playSong(song.id, song.title, song.artist)
@@ -95,6 +101,28 @@ class GlobalPlayerManager @Inject constructor(
             currentSongIndex++
             val nextSong = playlistQueue[currentSongIndex]
             playSong(nextSong.id, nextSong.title, nextSong.artist)
+        }
+        updateSkipState()
+    }
+
+    fun playPrevious() {
+        if (playlistQueue.isNotEmpty() && currentSongIndex > 0) {
+            currentSongIndex--
+            val prevSong = playlistQueue[currentSongIndex]
+            playSong(prevSong.id, prevSong.title, prevSong.artist)
+        } else {
+            // Listedeki ilk şarkıysa başa sar.
+            restart()
+        }
+        updateSkipState()
+    }
+
+    private fun updateSkipState() {
+        _playerState.update {
+            it.copy(
+                canSkipNext = playlistQueue.isNotEmpty() && currentSongIndex < playlistQueue.lastIndex,
+                canSkipPrevious = playlistQueue.isNotEmpty() && currentSongIndex > 0,
+            )
         }
     }
 
@@ -121,10 +149,31 @@ class GlobalPlayerManager @Inject constructor(
             )
         }
 
+        val serviceIntent = Intent(context, LyraMediaService::class.java)
+        try {
+            context.startService(serviceIntent)
+        } catch (e: Exception) {
+            ContextCompat.startForegroundService(context, serviceIntent)
+        }
+
         scope.launch {
             playerRepository.getStreamUrl(songId)
                 .onSuccess { url ->
-                    player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
+                    val dummyCoverUrl = "https://picsum.photos/seed/$songId/300/300"
+                    val mediaMetadata = MediaMetadata.Builder()
+                        .setTitle(title)
+                        .setArtist(artist)
+                        .setDisplayTitle(title)
+                        .setArtworkUri(Uri.parse(dummyCoverUrl))
+                        .build()
+
+                    val mediaItem = MediaItem.Builder()
+                        .setMediaId(songId)
+                        .setUri(Uri.parse(url))
+                        .setMediaMetadata(mediaMetadata)
+                        .build()
+
+                    player.setMediaItem(mediaItem)
                     player.prepare()
                     player.playWhenReady = true
                     startPolling()
@@ -149,6 +198,26 @@ class GlobalPlayerManager @Inject constructor(
 
     fun togglePlayPause() {
         if (player.isPlaying) player.pause() else player.play()
+    }
+
+    fun skipToNext() {
+        if (player.hasNextMediaItem()) {
+            player.seekToNextMediaItem()
+        }
+    }
+
+    fun skipToPrevious() {
+        if (player.currentPosition > 3000L) {
+            player.seekTo(0L)
+        } else if (player.hasPreviousMediaItem()) {
+            player.seekToPreviousMediaItem()
+        } else {
+            player.seekTo(0L)
+        }
+    }
+
+    fun toggleFavorite() {
+        _playerState.update { it.copy(isFavorite = !it.isFavorite) }
     }
 
     fun seekTo(positionMs: Long) {
@@ -194,8 +263,13 @@ data class GlobalPlayerState(
     val isLoading: Boolean = false,
     val isBuffering: Boolean = false,
     val hasEnded: Boolean = false,
+    val isFavorite: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val bufferedMs: Long = 0L,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    /** Playlist kuyruğunda bir sonraki öğe var mı. */
+    val canSkipNext: Boolean = false,
+    /** Playlist kuyruğunda bir önceki öğe var mı. */
+    val canSkipPrevious: Boolean = false,
 )

@@ -1,21 +1,20 @@
 package com.turkcell.lyraapp.ui.player
 
-import android.content.Context
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext context: Context,
     private val globalPlayerManager: GlobalPlayerManager,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -25,11 +24,25 @@ class PlayerViewModel @Inject constructor(
     }
     private val title: String = savedStateHandle.get<String>(ARG_TITLE).orEmpty()
     private val artist: String = savedStateHandle.get<String>(ARG_ARTIST).orEmpty()
+    private val coverUrl: String = savedStateHandle.get<String>(ARG_COVER_URL).orEmpty()
+    private val playlistName: String = savedStateHandle.get<String>(ARG_PLAYLIST_NAME).orEmpty()
+    private val isFavoriteArg: Boolean = savedStateHandle.get<Boolean>(ARG_IS_FAVORITE) ?: false
 
-    val uiState: StateFlow<PlayerUiState> = globalPlayerManager.playerState.map { state ->
+
+    /** Palette API'den UI katmanı tarafından yazılan baskın renk. */
+    private val _dominantColor = MutableStateFlow<Color?>(null)
+
+    val uiState: StateFlow<PlayerUiState> = combine(
+        globalPlayerManager.playerState,
+        _dominantColor,
+    ) { state, dominantColor ->
         PlayerUiState(
+            songId = songId,
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
+            coverUrl = coverUrl,
+            playlistName = playlistName,
+            isFavorite = isFavoriteArg,
             isPlaying = state.isPlaying,
             isLoading = state.isLoading,
             isBuffering = state.isBuffering,
@@ -37,18 +50,27 @@ class PlayerViewModel @Inject constructor(
             positionMs = state.positionMs,
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
-            errorMessage = state.errorMessage
-            // İlerleyen fazlarda ihtiyaç halinde buraya globalPlayerManager üzerinden
-            // isFavorite, repeatMode, isShuffling gibi durumlar da map'lenebilir.
+            errorMessage = state.errorMessage,
+            dominantColor = dominantColor,
+            canSkipNext = state.canSkipNext,
+            canSkipPrevious = state.canSkipPrevious,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = PlayerUiState(title = title, artist = artist, isLoading = true)
+        initialValue = PlayerUiState(
+            songId = songId,
+            title = title, 
+            artist = artist, 
+            coverUrl = coverUrl, 
+            playlistName = playlistName, 
+            isFavorite = isFavoriteArg, 
+            isLoading = true
+        ),
     )
 
     init {
-        // Eğer manager şu an BU şarkıyı çalmıyorsa, çalmasını söylüyoruz.
+        // Manager şu an BU şarkıyı çalmıyorsa, çalmasını söylüyoruz.
         if (globalPlayerManager.playerState.value.songId != songId) {
             globalPlayerManager.playSong(songId, title, artist)
         }
@@ -56,21 +78,14 @@ class PlayerViewModel @Inject constructor(
 
     fun onIntent(intent: PlayerIntent) {
         when (intent) {
-            // Mevcut Lojikleriniz (Aynen Korundu)
             PlayerIntent.TogglePlayPause -> globalPlayerManager.togglePlayPause()
             PlayerIntent.Restart -> globalPlayerManager.restart()
             PlayerIntent.SeekForward -> globalPlayerManager.seekBy(SEEK_STEP_MS)
             PlayerIntent.SeekBackward -> globalPlayerManager.seekBy(-SEEK_STEP_MS)
             is PlayerIntent.SeekTo -> globalPlayerManager.seekTo(intent.positionMs)
             PlayerIntent.Retry -> globalPlayerManager.playSong(songId, title, artist)
-
-            // ─── YENİ KONTRATA GÖRE IDE HATASINI ÇÖZEN EKSİK DALLAR ───
-            PlayerIntent.SkipNext -> {
-                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
-            }
-            PlayerIntent.SkipPrevious -> {
-                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
-            }
+            PlayerIntent.SkipNext -> globalPlayerManager.playNext()
+            PlayerIntent.SkipPrevious -> globalPlayerManager.playPrevious()
             PlayerIntent.ToggleFavorite -> {
                 // TODO: Favori repo/manager lojiği bağlandığında tetiklenecek
             }
@@ -81,7 +96,7 @@ class PlayerViewModel @Inject constructor(
                 // TODO: Karışık çalma lojiği bağlandığında tetiklenecek
             }
             is PlayerIntent.UpdateDominantColor -> {
-                // TODO: Palette API'den gelen renk durumunu UI state'e yazma lojiği
+                _dominantColor.value = intent.color?.let { Color(it) }
             }
         }
     }
@@ -90,6 +105,9 @@ class PlayerViewModel @Inject constructor(
         const val ARG_SONG_ID = "songId"
         const val ARG_TITLE = "title"
         const val ARG_ARTIST = "artist"
+        const val ARG_COVER_URL = "coverUrl"
+        const val ARG_PLAYLIST_NAME = "playlistName"
+        const val ARG_IS_FAVORITE = "isFavorite"
 
         private const val SEEK_STEP_MS = 10_000L
     }

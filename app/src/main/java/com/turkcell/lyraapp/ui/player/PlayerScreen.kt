@@ -85,13 +85,15 @@ fun PlayerScreen(
         label = "gradientTop",
     )
 
-    val gradient = Brush.verticalGradient(
-        colors = listOf(
-            animatedTop,
-            DarkSurface.copy(alpha = 0.95f),
-            DarkSurface,
-        ),
-    )
+    val gradient = remember(animatedTop) {
+        Brush.verticalGradient(
+            colors = listOf(
+                animatedTop,
+                DarkSurface.copy(alpha = 0.95f),
+                DarkSurface,
+            ),
+        )
+    }
 
     Box(
         modifier = modifier
@@ -118,6 +120,7 @@ fun PlayerScreen(
             // ── Kapak fotoğrafı ───────────────────────────────────────────────
             CoverArt(
                 coverUrl = state.coverUrl,
+                songId = state.songId,
                 onDominantColor = { color ->
                     onIntent(PlayerIntent.UpdateDominantColor(color))
                 },
@@ -227,14 +230,15 @@ private fun TopBar(
 @Composable
 private fun CoverArt(
     coverUrl: String,
+    songId: String,
     onDominantColor: (Int?) -> Unit,
 ) {
     val context = LocalContext.current
+    val actualCoverUrl = coverUrl.ifBlank { "https://picsum.photos/seed/$songId/300/300" }
 
     AsyncImage(
         model = ImageRequest.Builder(context)
-            .data(coverUrl.ifBlank { null })
-            .allowHardware(false)
+            .data(actualCoverUrl)
             .crossfade(true)
             .build(),
         contentDescription = "Albüm kapağı",
@@ -390,11 +394,14 @@ private fun PlaybackControls(
         }
 
         // Önceki Şarkı Butonu
-        IconButton(onClick = onSkipPrevious, modifier = Modifier.size(48.dp)) {
+        IconButton(
+            onClick = onSkipPrevious,
+            enabled = canSkipPrevious,
+            modifier = Modifier.size(48.dp),
+        ) {
             Icon(
                 imageVector = LyraIcons.SkipPrevious,
                 contentDescription = "Önceki",
-                // DÜZELTME: canSkipPrevious durumuna göre rengi söndürülür ama buton tıklanabilir kalır.
                 tint = if (canSkipPrevious) Color.White else Color.White.copy(alpha = 0.3f),
                 modifier = Modifier.size(28.dp),
             )
@@ -422,11 +429,14 @@ private fun PlaybackControls(
         }
 
         // Sonraki Şarkı Butonu
-        IconButton(onClick = onSkipNext, modifier = Modifier.size(48.dp)) {
+        IconButton(
+            onClick = onSkipNext,
+            enabled = canSkipNext,
+            modifier = Modifier.size(48.dp),
+        ) {
             Icon(
                 imageVector = LyraIcons.SkipNext,
                 contentDescription = "Sonraki",
-                // DÜZELTME: canSkipNext durumuna göre rengi söndürülür ama talep doğrultusunda tıklanabilir kalır.
                 tint = if (canSkipNext) Color.White else Color.White.copy(alpha = 0.3f),
                 modifier = Modifier.size(28.dp),
             )

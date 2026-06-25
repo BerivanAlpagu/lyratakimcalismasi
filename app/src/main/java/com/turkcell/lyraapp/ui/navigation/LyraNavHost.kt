@@ -179,6 +179,18 @@ fun LyraNavHost(
                         type = NavType.StringType
                         defaultValue = ""
                     },
+                    navArgument(PlayerViewModel.ARG_COVER_URL) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument(PlayerViewModel.ARG_PLAYLIST_NAME) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                    navArgument(PlayerViewModel.ARG_IS_FAVORITE) {
+                        type = NavType.BoolType
+                        defaultValue = false
+                    },
                 ),
             ) {
                 PlayerRoute(onNavigateBack = { navController.popBackStack() })
@@ -194,16 +206,29 @@ fun LyraNavHost(
 private const val PLAYER_ROUTE_PATTERN =
     "player/{${PlayerViewModel.ARG_SONG_ID}}?" +
             "${PlayerViewModel.ARG_TITLE}={${PlayerViewModel.ARG_TITLE}}&" +
-            "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}"
+            "${PlayerViewModel.ARG_ARTIST}={${PlayerViewModel.ARG_ARTIST}}&" +
+            "${PlayerViewModel.ARG_COVER_URL}={${PlayerViewModel.ARG_COVER_URL}}&" +
+            "${PlayerViewModel.ARG_PLAYLIST_NAME}={${PlayerViewModel.ARG_PLAYLIST_NAME}}&" +
+            "${PlayerViewModel.ARG_IS_FAVORITE}={${PlayerViewModel.ARG_IS_FAVORITE}}"
 
 /**
  * Bir şarkı için gerçek oynatıcı yolunu üretir. Tüm bileşenler URL-encode edilir; böylece
  * boşluk/özel karakter içeren başlık ve sanatçı adları route'u bozmaz.
  */
-private fun playerRoute(songId: String, title: String, artist: String): String =
+private fun playerRoute(
+    songId: String, 
+    title: String = "", 
+    artist: String = "",
+    coverUrl: String = "",
+    playlistName: String = "",
+    isFavorite: Boolean = false
+): String =
     "player/${Uri.encode(songId)}?" +
             "${PlayerViewModel.ARG_TITLE}=${Uri.encode(title)}&" +
-            "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}"
+            "${PlayerViewModel.ARG_ARTIST}=${Uri.encode(artist)}&" +
+            "${PlayerViewModel.ARG_COVER_URL}=${Uri.encode(coverUrl)}&" +
+            "${PlayerViewModel.ARG_PLAYLIST_NAME}=${Uri.encode(playlistName)}&" +
+            "${PlayerViewModel.ARG_IS_FAVORITE}=$isFavorite"
 
 /**
  * Alt çubuk sekmesine standart desenle geçiş yapar: back stack'te sekme kopyası birikmez
