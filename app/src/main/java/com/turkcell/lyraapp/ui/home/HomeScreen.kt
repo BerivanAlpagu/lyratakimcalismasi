@@ -51,6 +51,7 @@ import com.turkcell.lyraapp.data.home.PlaylistForYou
 import com.turkcell.lyraapp.data.home.QuickPick
 import com.turkcell.lyraapp.data.home.RecentlyPlayed
 import com.turkcell.lyraapp.ui.icons.LyraIcons
+import com.turkcell.lyraapp.ui.player.LyraMiniPlayer
 import com.turkcell.lyraapp.ui.theme.LyraAppTheme
 
 /**
@@ -117,11 +118,17 @@ fun HomeScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (state.nowPlayingSong != null) {
-                NowPlayingBar(
-                    song = state.nowPlayingSong,
+                LyraMiniPlayer(
+                    title = state.nowPlayingSong.title,
+                    artist = state.nowPlayingSong.artist,
+                    coverUrl = "", // In a real scenario we'd use URL, but currently it's local gradient. Wait, HomeSong doesn't have coverUrl? We'll leave it empty to trigger fallback.
                     isPlaying = state.isPlaying,
-                    onPlayPauseClick = { onIntent(HomeIntent.TogglePlayPause) },
-                    onBarClick = { onIntent(HomeIntent.SongSelected(state.nowPlayingSong)) }
+                    isFavorite = state.isFavorite,
+                    onTogglePlayPause = { onIntent(HomeIntent.TogglePlayPause) },
+                    onToggleFavorite = { onIntent(HomeIntent.ToggleFavorite) },
+                    onSkipNext = { onIntent(HomeIntent.SkipNext) },
+                    onClick = { onIntent(HomeIntent.SongSelected(state.nowPlayingSong)) },
+                    modifier = Modifier.padding(bottom = 8.dp, start = 8.dp, end = 8.dp)
                 )
             }
         }
@@ -149,7 +156,14 @@ fun HomeScreen(
                         .statusBarsPadding(),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    item { HomeHeader(greeting = state.greeting, userInitials = state.userInitials) }
+                    item { 
+                        HomeHeader(
+                            greeting = state.greeting, 
+                            userInitials = state.userInitials,
+                            isDarkMode = state.isDarkMode,
+                            onToggleTheme = { onIntent(HomeIntent.ToggleTheme) }
+                        ) 
+                    }
                     item { 
                         QuickPickGrid(
                             quickPicks = state.quickPicks,
@@ -180,6 +194,8 @@ fun HomeScreen(
 private fun HomeHeader(
     greeting: String,
     userInitials: String,
+    isDarkMode: Boolean,
+    onToggleTheme: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -202,10 +218,12 @@ private fun HomeHeader(
             )
         }
         Icon(
-            imageVector = LyraIcons.LightMode,
-            contentDescription = null,
+            imageVector = if (isDarkMode) LyraIcons.LightMode else LyraIcons.DarkMode,
+            contentDescription = "Temayı Değiştir",
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
+            modifier = Modifier
+                .size(24.dp)
+                .clickable { onToggleTheme() }
         )
         Spacer(Modifier.width(16.dp))
         UserAvatar(initials = userInitials)
@@ -457,61 +475,7 @@ private fun Artwork(
     )
 }
 
-@Composable
-private fun NowPlayingBar(
-    song: HomeSong,
-    isPlaying: Boolean,
-    onPlayPauseClick: () -> Unit,
-    onBarClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onBarClick)
-            .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(56.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Artwork(
-            startColor = song.artworkStartColor,
-            endColor = song.artworkEndColor,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(8.dp)),
-        )
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 12.dp)
-        ) {
-            Text(
-                text = song.title,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = song.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Icon(
-            imageVector = if (isPlaying) LyraIcons.Pause else LyraIcons.Play,
-            contentDescription = if (isPlaying) "Duraklat" else "Oynat",
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier
-                .size(32.dp)
-                .clickable(onClick = onPlayPauseClick)
-                .padding(4.dp)
-        )
-    }
-}
+// Removed NowPlayingBar in favor of LyraMiniPlayer
 
 private val previewState = HomeUiState(
     greeting = "İyi akşamlar",

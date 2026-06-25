@@ -9,14 +9,19 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+import com.turkcell.lyraapp.data.local.FavoritesStore
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     @ApplicationContext context: Context,
     private val globalPlayerManager: GlobalPlayerManager,
+    private val favoritesStore: FavoritesStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -26,7 +31,10 @@ class PlayerViewModel @Inject constructor(
     private val title: String = savedStateHandle.get<String>(ARG_TITLE).orEmpty()
     private val artist: String = savedStateHandle.get<String>(ARG_ARTIST).orEmpty()
 
-    val uiState: StateFlow<PlayerUiState> = globalPlayerManager.playerState.map { state ->
+    val uiState: StateFlow<PlayerUiState> = combine(
+        globalPlayerManager.playerState,
+        favoritesStore.favoriteSongIds
+    ) { state, favoriteIds ->
         PlayerUiState(
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
@@ -37,9 +45,10 @@ class PlayerViewModel @Inject constructor(
             positionMs = state.positionMs,
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
-            errorMessage = state.errorMessage
+            errorMessage = state.errorMessage,
+            isFavorite = favoriteIds.contains(songId)
             // İlerleyen fazlarda ihtiyaç halinde buraya globalPlayerManager üzerinden
-            // isFavorite, repeatMode, isShuffling gibi durumlar da map'lenebilir.
+            // repeatMode, isShuffling gibi durumlar da map'lenebilir.
         )
     }.stateIn(
         scope = viewModelScope,
@@ -66,13 +75,26 @@ class PlayerViewModel @Inject constructor(
 
             // ─── YENİ KONTRATA GÖRE IDE HATASINI ÇÖZEN EKSİK DALLAR ───
             PlayerIntent.SkipNext -> {
-                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
+                globalPlayerManager.playNext()
             }
             PlayerIntent.SkipPrevious -> {
                 // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
             }
             PlayerIntent.ToggleFavorite -> {
-                // TODO: Favori repo/manager lojiği bağlandığında tetiklenecek
+                viewModelScope.launch {
+                    val currentState = globalPlayerManager.playerState.value
+                    favoritesStore.toggleFavorite(
+                        com.turkcell.lyraapp.data.local.FavoriteSong(
+                            id = songId,
+                            title = currentState.title.ifEmpty { title },
+                            artist = currentState.artist.ifEmpty { artist },
+                            duration = formatSongDuration(currentState.durationMs),
+                            durationMs = currentState.durationMs,
+                            artworkStartColor = currentState.artworkStartColor,
+                            artworkEndColor = currentState.artworkEndColor
+                        )
+                    )
+                }
             }
             PlayerIntent.ToggleRepeat -> {
                 // TODO: Döngüsel tekrar modu lojiği bağlandığında tetiklenecek
@@ -84,6 +106,13 @@ class PlayerViewModel @Inject constructor(
                 // TODO: Palette API'den gelen renk durumunu UI state'e yazma lojiği
             }
         }
+    }
+
+    private fun formatSongDuration(ms: Long): String {
+        val totalSeconds = (ms.coerceAtLeast(0L)) / 1000L
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%d:%02d".format(minutes, seconds)
     }
 
     companion object {

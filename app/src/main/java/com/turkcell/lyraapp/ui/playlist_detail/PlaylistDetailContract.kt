@@ -13,6 +13,7 @@ data class PlaylistDetailUiState(
     val allSongs: List<SongDto> = emptyList(),
     val isAddSongDialogVisible: Boolean = false,
     val isLoadingSongs: Boolean = false,
+    val favoriteSongIds: Set<String> = emptySet()
 )
 
 sealed interface PlaylistDetailIntent {
@@ -24,6 +25,9 @@ sealed interface PlaylistDetailIntent {
 
     /** Geri tuşuna basıldığında. */
     data object BackClicked : PlaylistDetailIntent
+
+    /** Şarkının favori durumu değiştirilmek istendiğinde. */
+    data class ToggleFavoriteClicked(val songId: String) : PlaylistDetailIntent
 
     /** Bir şarkıya tıklanıp oynatılmak istendiğinde. */
     data class SongClicked(val songId: String, val title: String, val artist: String) : PlaylistDetailIntent

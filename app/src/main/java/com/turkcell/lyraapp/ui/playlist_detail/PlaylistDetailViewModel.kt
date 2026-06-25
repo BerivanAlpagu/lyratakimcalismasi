@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.library.LibraryRepository
+import com.turkcell.lyraapp.data.local.FavoritesStore
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import com.turkcell.lyraapp.data.songs.SongDto
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
     private val globalPlayerManager: GlobalPlayerManager,
+    private val favoritesStore: FavoritesStore,
 ) : ViewModel() {
 
     private val playlistId: String = checkNotNull(savedStateHandle["playlistId"]) {
@@ -41,11 +43,33 @@ class PlaylistDetailViewModel @Inject constructor(
 
     init {
         onIntent(PlaylistDetailIntent.LoadDetail(playlistId))
+        
+        viewModelScope.launch {
+            favoritesStore.favoriteSongIds.collect { favoriteIds ->
+                _uiState.update { it.copy(favoriteSongIds = favoriteIds) }
+            }
+        }
     }
 
     fun onIntent(intent: PlaylistDetailIntent) {
         when (intent) {
             is PlaylistDetailIntent.LoadDetail -> loadDetail(intent.id)
+            is PlaylistDetailIntent.ToggleFavoriteClicked -> {
+                viewModelScope.launch {
+                    val song = _uiState.value.playlist?.songs?.find { it.id == intent.songId }
+                    if (song != null) {
+                        favoritesStore.toggleFavorite(
+                            com.turkcell.lyraapp.data.local.FavoriteSong(
+                                id = song.id,
+                                title = song.title,
+                                artist = song.artist,
+                                duration = formatSongDuration(song.durationMs ?: 0L),
+                                durationMs = song.durationMs ?: 0L
+                            )
+                        )
+                    }
+                }
+            }
             is PlaylistDetailIntent.RetryClicked -> loadDetail(playlistId)
             is PlaylistDetailIntent.BackClicked -> navigateBack()
             is PlaylistDetailIntent.SongClicked -> playSong(intent.songId, intent.title, intent.artist)
@@ -185,6 +209,13 @@ class PlaylistDetailViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun formatSongDuration(ms: Long): String {
+        val totalSeconds = (ms.coerceAtLeast(0L)) / 1000L
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%d:%02d".format(minutes, seconds)
     }
 
     private fun navigateBack() {
