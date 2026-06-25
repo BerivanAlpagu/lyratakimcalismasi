@@ -169,8 +169,12 @@ fun PlaylistDetailScreen(
                                 song = song,
                                 isFirst = index == 0,
                                 isLast = index == playlist.songs.lastIndex,
+                                isFavorite = state.favoriteSongIds.contains(song.id),
                                 onClick = {
                                     onIntent(PlaylistDetailIntent.SongClicked(song.id, song.title, song.artist))
+                                },
+                                onToggleFavorite = {
+                                    onIntent(PlaylistDetailIntent.ToggleFavoriteClicked(song.id))
                                 },
                                 onRemoveSong = {
                                     onIntent(PlaylistDetailIntent.RemoveSongClicked(song.id))
@@ -419,7 +423,9 @@ private fun SongItem(
     song: SongDto,
     isFirst: Boolean,
     isLast: Boolean,
+    isFavorite: Boolean,
     onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onRemoveSong: () -> Unit,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
@@ -476,11 +482,11 @@ private fun SongItem(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
-        IconButton(onClick = { }) {
+        IconButton(onClick = onToggleFavorite) {
             Icon(
-                imageVector = LyraIcons.FavoriteOutlined,
-                contentDescription = "Beğen",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                imageVector = if (isFavorite) LyraIcons.Favorite else LyraIcons.FavoriteOutlined,
+                contentDescription = if (isFavorite) "Favorilerden Çıkar" else "Beğen",
+                tint = if (isFavorite) Color(0xFFFFAFD2) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(20.dp)
             )
         }

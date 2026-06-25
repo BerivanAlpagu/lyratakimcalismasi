@@ -103,7 +103,10 @@ fun FavoritesScreen(
                             onDarkText = onDarkText,
                             onDarkTextSecondary = onDarkTextSecondary,
                             brandPink = brandPink,
-                            buttonSurface = buttonSurface
+                            buttonSurface = buttonSurface,
+                            songCount = uiState.favorites.size,
+                            isEmpty = uiState.favorites.isEmpty(),
+                            totalDurationMs = uiState.favorites.sumOf { it.durationMs }
                         )
                     }
 
@@ -126,8 +129,25 @@ private fun FavoritesHeader(
     onDarkText: Color,
     onDarkTextSecondary: Color,
     brandPink: Color,
-    buttonSurface: Color
+    buttonSurface: Color,
+    songCount: Int,
+    isEmpty: Boolean,
+    totalDurationMs: Long
 ) {
+    
+    fun formatPlaylistDuration(ms: Long): String {
+        if (ms == 0L) return "0 dk"
+        val totalSeconds = ms / 1000L
+        val totalMinutes = totalSeconds / 60L
+        return if (totalMinutes < 60L) {
+            "$totalMinutes dk"
+        } else {
+            val hours = totalMinutes / 60L
+            val minutes = totalMinutes % 60L
+            "${hours}s ${minutes}d"
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -159,7 +179,7 @@ private fun FavoritesHeader(
             Spacer(modifier = Modifier.width(20.dp))
             Column {
                 Text(
-                    text = "Beğenilen\nŞarkılar",
+                    text = if (isEmpty) "Favoriler" else "Beğenilen\nŞarkılar",
                     color = onDarkText,
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Medium,
@@ -167,7 +187,7 @@ private fun FavoritesHeader(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "5 şarkı · 19 dk",
+                    text = if (isEmpty) "$songCount şarkı" else "$songCount şarkı · ${formatPlaylistDuration(totalDurationMs)}",
                     color = onDarkTextSecondary,
                     fontSize = 14.sp
                 )
@@ -199,7 +219,6 @@ private fun FavoritesHeader(
                 Text(text = "Çal", color = Color(0xFF4A102A), fontWeight = FontWeight.Bold)
             }
             
-            // Placeholder for Shuffle Icon
             IconButton(
                 onClick = { },
                 modifier = Modifier
@@ -207,11 +226,13 @@ private fun FavoritesHeader(
                     .clip(CircleShape)
                     .background(buttonSurface)
             ) {
-                // Using text fallback if icon missing
-                Text("🔀", fontSize = 18.sp)
+                Icon(
+                    imageVector = LyraIcons.Shuffle,
+                    contentDescription = "Karıştır",
+                    tint = onDarkTextSecondary
+                )
             }
             
-            // Placeholder for Download Icon
             IconButton(
                 onClick = { },
                 modifier = Modifier
@@ -219,7 +240,11 @@ private fun FavoritesHeader(
                     .clip(CircleShape)
                     .background(buttonSurface)
             ) {
-                Text("⬇", fontSize = 18.sp, color = onDarkTextSecondary)
+                Icon(
+                    imageVector = LyraIcons.Download,
+                    contentDescription = "İndir",
+                    tint = onDarkTextSecondary
+                )
             }
         }
         Spacer(modifier = Modifier.height(24.dp))

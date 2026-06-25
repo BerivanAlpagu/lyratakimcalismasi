@@ -21,6 +21,8 @@ data class HomeUiState(
     val playlistsForYou: List<PlaylistForYou> = emptyList(),
     val nowPlayingSong: HomeSong? = null,
     val isPlaying: Boolean = false,
+    val isFavorite: Boolean = false,
+    val isDarkMode: Boolean = true
 )
 
 sealed interface HomeIntent {
@@ -32,6 +34,13 @@ sealed interface HomeIntent {
 
     /** Alt bardaki Play/Pause butonuna tıklandı */
     data object TogglePlayPause : HomeIntent
+    
+    /** Alt bardaki Favori butonuna tıklandı */
+    data object ToggleFavorite : HomeIntent
+    
+    /** Alt bardaki Sonraki Şarkı butonuna tıklandı */
+    data object SkipNext : HomeIntent
+    data object ToggleTheme : HomeIntent
 }
 
 sealed interface HomeEffect {

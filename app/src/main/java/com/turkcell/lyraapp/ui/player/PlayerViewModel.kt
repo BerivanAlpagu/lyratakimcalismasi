@@ -1,21 +1,28 @@
 package com.turkcell.lyraapp.ui.player
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.local.FavoriteSong
+import com.turkcell.lyraapp.data.local.FavoritesStore
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
+    @ApplicationContext context: Context,
     private val globalPlayerManager: GlobalPlayerManager,
+    private val favoritesStore: FavoritesStore,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -28,21 +35,20 @@ class PlayerViewModel @Inject constructor(
     private val playlistName: String = savedStateHandle.get<String>(ARG_PLAYLIST_NAME).orEmpty()
     private val isFavoriteArg: Boolean = savedStateHandle.get<Boolean>(ARG_IS_FAVORITE) ?: false
 
-
     /** Palette API'den UI katmanı tarafından yazılan baskın renk. */
     private val _dominantColor = MutableStateFlow<Color?>(null)
 
     val uiState: StateFlow<PlayerUiState> = combine(
         globalPlayerManager.playerState,
+        favoritesStore.favoriteSongIds,
         _dominantColor,
-    ) { state, dominantColor ->
+    ) { state, favoriteIds, dominantColor ->
         PlayerUiState(
             songId = songId,
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
             coverUrl = coverUrl,
             playlistName = playlistName,
-            isFavorite = isFavoriteArg,
             isPlaying = state.isPlaying,
             isLoading = state.isLoading,
             isBuffering = state.isBuffering,
@@ -51,6 +57,7 @@ class PlayerViewModel @Inject constructor(
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
             errorMessage = state.errorMessage,
+            isFavorite = favoriteIds.contains(songId),
             dominantColor = dominantColor,
             canSkipNext = state.canSkipNext,
             canSkipPrevious = state.canSkipPrevious,
@@ -60,11 +67,11 @@ class PlayerViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PlayerUiState(
             songId = songId,
-            title = title, 
-            artist = artist, 
-            coverUrl = coverUrl, 
-            playlistName = playlistName, 
-            isFavorite = isFavoriteArg, 
+            title = title,
+            artist = artist,
+            coverUrl = coverUrl,
+            playlistName = playlistName,
+            isFavorite = isFavoriteArg,
             isLoading = true
         ),
     )
@@ -87,7 +94,20 @@ class PlayerViewModel @Inject constructor(
             PlayerIntent.SkipNext -> globalPlayerManager.playNext()
             PlayerIntent.SkipPrevious -> globalPlayerManager.playPrevious()
             PlayerIntent.ToggleFavorite -> {
-                // TODO: Favori repo/manager lojiği bağlandığında tetiklenecek
+                viewModelScope.launch {
+                    val currentState = globalPlayerManager.playerState.value
+                    favoritesStore.toggleFavorite(
+                        FavoriteSong(
+                            id = songId,
+                            title = currentState.title.ifEmpty { title },
+                            artist = currentState.artist.ifEmpty { artist },
+                            duration = formatSongDuration(currentState.durationMs),
+                            durationMs = currentState.durationMs,
+                            artworkStartColor = currentState.artworkStartColor,
+                            artworkEndColor = currentState.artworkEndColor
+                        )
+                    )
+                }
             }
             PlayerIntent.ToggleRepeat -> {
                 // TODO: Döngüsel tekrar modu lojiği bağlandığında tetiklenecek
@@ -99,6 +119,13 @@ class PlayerViewModel @Inject constructor(
                 _dominantColor.value = intent.color?.let { Color(it) }
             }
         }
+    }
+
+    private fun formatSongDuration(ms: Long): String {
+        val totalSeconds = (ms.coerceAtLeast(0L)) / 1000L
+        val minutes = totalSeconds / 60L
+        val seconds = totalSeconds % 60L
+        return "%d:%02d".format(minutes, seconds)
     }
 
     companion object {

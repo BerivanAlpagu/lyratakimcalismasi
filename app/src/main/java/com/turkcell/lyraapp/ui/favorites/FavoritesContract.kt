@@ -4,7 +4,8 @@ data class FavoriteSongUiModel(
     val id: String,
     val title: String,
     val artist: String,
-    val duration: String
+    val duration: String,
+    val durationMs: Long
 )
 
 data class FavoritesUiState(

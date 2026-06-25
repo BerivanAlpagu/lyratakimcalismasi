@@ -90,6 +90,14 @@ object LyraIcons {
         )
     }
 
+    /** Gece Modu (Ay) ikonu (Material DarkMode). */
+    val DarkMode: ImageVector by lazy {
+        lyraIcon(
+            name = "DarkMode",
+            pathData = "M12,3c-4.97,0 -9,4.03 -9,9s4.03,9 9,9 9,-4.03 9,-9c0,-0.46 -0.04,-0.92 -0.1,-1.36 -0.98,1.37 -2.58,2.26 -4.4,2.26 -3.03,0 -5.5,-2.47 -5.5,-5.5 0,-1.82 0.89,-3.42 2.26,-4.4C12.92,3.04 12.46,3 12,3z"
+        )
+    }
+
     // ── Oynatıcı (PlayerScreen) kontrol ikonları ──
 
     /** Oynat (Material PlayArrow, filled). */
