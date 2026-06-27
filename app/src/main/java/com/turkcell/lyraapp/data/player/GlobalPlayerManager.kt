@@ -271,13 +271,7 @@ class GlobalPlayerManager @Inject constructor(
     }
 
     fun skipToPrevious() {
-        if (player.currentPosition > 3000L) {
-            player.seekTo(0L)
-        } else if (player.hasPreviousMediaItem()) {
-            player.seekToPreviousMediaItem()
-        } else {
-            player.seekTo(0L)
-        }
+        playPrevious()
     }
 
     fun toggleFavorite() {

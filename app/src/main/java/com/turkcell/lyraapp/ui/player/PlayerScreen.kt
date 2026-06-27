@@ -396,13 +396,12 @@ private fun PlaybackControls(
         // Önceki Şarkı Butonu
         IconButton(
             onClick = onSkipPrevious,
-            enabled = canSkipPrevious,
             modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 imageVector = LyraIcons.SkipPrevious,
                 contentDescription = "Önceki",
-                tint = if (canSkipPrevious) Color.White else Color.White.copy(alpha = 0.3f),
+                tint = Color.White,
                 modifier = Modifier.size(28.dp),
             )
         }
@@ -431,13 +430,12 @@ private fun PlaybackControls(
         // Sonraki Şarkı Butonu
         IconButton(
             onClick = onSkipNext,
-            enabled = canSkipNext,
             modifier = Modifier.size(48.dp),
         ) {
             Icon(
                 imageVector = LyraIcons.SkipNext,
                 contentDescription = "Sonraki",
-                tint = if (canSkipNext) Color.White else Color.White.copy(alpha = 0.3f),
+                tint = Color.White,
                 modifier = Modifier.size(28.dp),
             )
         }
