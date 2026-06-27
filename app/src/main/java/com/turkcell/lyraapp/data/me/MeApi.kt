@@ -50,7 +50,7 @@ interface MeApi {
     @DELETE("api/v1/me/playlists/{id}")
     suspend fun deletePlaylist(
         @Path("id") playlistId: String,
-    ): retrofit2.Response<Unit>
+    ): DeletePlaylistResponse
 }
 
 @Serializable
@@ -114,4 +114,14 @@ data class RemoveSongResponse(
 @Serializable
 data class RemoveSongData(
     val removed: Boolean
+)
+
+@Serializable
+data class DeletePlaylistResponse(
+    val data: DeletePlaylistData
+)
+
+@Serializable
+data class DeletePlaylistData(
+    val deleted: Boolean
 )
