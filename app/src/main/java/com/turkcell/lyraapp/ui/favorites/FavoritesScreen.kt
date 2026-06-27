@@ -99,6 +99,9 @@ fun FavoritesScreen(
                     contentPadding = PaddingValues(bottom = 100.dp) // Bottom bar offset
                 ) {
                     item {
+                        val isDownloaded = uiState.favorites.isNotEmpty() && 
+                                          uiState.favorites.all { uiState.downloadedSongIds.contains(it.id) }
+                        val isDownloading = uiState.favorites.any { uiState.downloadingSongIds.contains(it.id) }
                         FavoritesHeader(
                             onDarkText = onDarkText,
                             onDarkTextSecondary = onDarkTextSecondary,
@@ -106,7 +109,10 @@ fun FavoritesScreen(
                             buttonSurface = buttonSurface,
                             songCount = uiState.favorites.size,
                             isEmpty = uiState.favorites.isEmpty(),
-                            totalDurationMs = uiState.favorites.sumOf { it.durationMs }
+                            totalDurationMs = uiState.favorites.sumOf { it.durationMs },
+                            isDownloaded = isDownloaded,
+                            isDownloading = isDownloading,
+                            onDownloadClick = { onIntent(FavoritesIntent.DownloadFavoritesClicked) }
                         )
                     }
 
@@ -132,7 +138,10 @@ private fun FavoritesHeader(
     buttonSurface: Color,
     songCount: Int,
     isEmpty: Boolean,
-    totalDurationMs: Long
+    totalDurationMs: Long,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    onDownloadClick: () -> Unit,
 ) {
     
     fun formatPlaylistDuration(ms: Long): String {
@@ -234,17 +243,25 @@ private fun FavoritesHeader(
             }
             
             IconButton(
-                onClick = { },
+                onClick = onDownloadClick,
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
                     .background(buttonSurface)
             ) {
-                Icon(
-                    imageVector = LyraIcons.Download,
-                    contentDescription = "İndir",
-                    tint = onDarkTextSecondary
-                )
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = brandPink,
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    Icon(
+                        imageVector = LyraIcons.Download,
+                        contentDescription = "İndir",
+                        tint = if (isDownloaded) brandPink else onDarkTextSecondary
+                    )
+                }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))

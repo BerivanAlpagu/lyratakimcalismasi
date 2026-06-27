@@ -13,10 +13,15 @@ data class PlaylistDetailUiState(
     val allSongs: List<SongDto> = emptyList(),
     val isAddSongDialogVisible: Boolean = false,
     val isLoadingSongs: Boolean = false,
-    val favoriteSongIds: Set<String> = emptySet()
+    val favoriteSongIds: Set<String> = emptySet(),
+    val downloadedSongIds: Set<String> = emptySet(),
+    val downloadingSongIds: Set<String> = emptySet()
 )
 
 sealed interface PlaylistDetailIntent {
+    /** Çalma listesindeki tüm şarkıları indirir veya siler. */
+    data object DownloadPlaylistClicked : PlaylistDetailIntent
+
     /** Detay verilerini yükleme isteği. */
     data class LoadDetail(val id: String) : PlaylistDetailIntent
 

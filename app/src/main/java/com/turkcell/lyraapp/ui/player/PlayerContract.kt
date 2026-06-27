@@ -56,9 +56,17 @@ data class PlayerUiState(
      */
     val canSkipPrevious: Boolean = false,
     val canSkipNext: Boolean = false,
+
+    /** Şarkı cihaza indirildi mi. */
+    val isDownloaded: Boolean = false,
+    /** Şarkı indiriliyor mu (yükleme durumu). */
+    val isDownloading: Boolean = false,
 )
 
 sealed interface PlayerIntent {
+    /** Çevrimdışı dinlemek için şarkıyı indirir veya siler. */
+    data object ToggleDownload : PlayerIntent
+
     /** Çalıyorsa duraklat, duraklatılmışsa devam ettir. */
     data object TogglePlayPause : PlayerIntent
 

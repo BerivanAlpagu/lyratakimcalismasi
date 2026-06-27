@@ -4,7 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.library.LibraryRepository
+import com.turkcell.lyraapp.data.local.DownloadedSongDao
 import com.turkcell.lyraapp.data.local.FavoritesStore
+import com.turkcell.lyraapp.data.local.OfflineManager
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import com.turkcell.lyraapp.data.songs.SongDto
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,11 +31,15 @@ class PlaylistDetailViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val globalPlayerManager: GlobalPlayerManager,
     private val favoritesStore: FavoritesStore,
+    private val offlineManager: OfflineManager,
+    private val downloadedSongDao: DownloadedSongDao,
 ) : ViewModel() {
 
     private val playlistId: String = checkNotNull(savedStateHandle["playlistId"]) {
         "playlistId parametresi PlaylistDetail ekranı için zorunludur."
     }
+
+    private var loadJob: kotlinx.coroutines.Job? = null
 
     private val _uiState = MutableStateFlow(PlaylistDetailUiState())
     val uiState: StateFlow<PlaylistDetailUiState> = _uiState.asStateFlow()
@@ -49,10 +55,52 @@ class PlaylistDetailViewModel @Inject constructor(
                 _uiState.update { it.copy(favoriteSongIds = favoriteIds) }
             }
         }
+
+        viewModelScope.launch {
+            offlineManager.downloadedSongIds.collect { downloadedIds ->
+                _uiState.update { it.copy(downloadedSongIds = downloadedIds) }
+            }
+        }
+
+        viewModelScope.launch {
+            offlineManager.downloadingSongIds.collect { downloadingIds ->
+                _uiState.update { it.copy(downloadingSongIds = downloadingIds) }
+            }
+        }
     }
 
     fun onIntent(intent: PlaylistDetailIntent) {
         when (intent) {
+            PlaylistDetailIntent.DownloadPlaylistClicked -> {
+                viewModelScope.launch {
+                    val songs = _uiState.value.playlist?.songs ?: emptyList()
+                    if (songs.isEmpty()) return@launch
+
+                    val downloadedIds = _uiState.value.downloadedSongIds
+                    val allDownloaded = songs.all { downloadedIds.contains(it.id) }
+
+                    if (allDownloaded) {
+                        songs.forEach { song ->
+                            offlineManager.deleteSong(song.id)
+                        }
+                    } else {
+                        songs.forEach { song ->
+                            if (!downloadedIds.contains(song.id)) {
+                                val result = offlineManager.downloadSong(
+                                    songId = song.id,
+                                    title = song.title,
+                                    artist = song.artist,
+                                    durationMs = song.durationMs ?: 0L
+                                )
+                                if (result.isFailure) {
+                                    val errorMsg = result.exceptionOrNull()?.message ?: "İndirme başarısız oldu."
+                                    _effect.send(PlaylistDetailEffect.ShowError(errorMsg))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             is PlaylistDetailIntent.LoadDetail -> loadDetail(intent.id)
             is PlaylistDetailIntent.ToggleFavoriteClicked -> {
                 viewModelScope.launch {
@@ -96,21 +144,41 @@ class PlaylistDetailViewModel @Inject constructor(
     }
 
     private fun loadDetail(id: String) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            libraryRepository.getPlaylistDetail(id)
-                .onSuccess { detail ->
-                    _uiState.update { it.copy(isLoading = false, playlist = detail) }
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
-                    _effect.send(
-                        PlaylistDetailEffect.ShowError(
-                            error.message ?: "Çalma listesi detayları yüklenemedi."
-
+            if (id == "downloads") {
+                downloadedSongDao.getAllDownloadedSongs().collect { entities ->
+                    val songs = entities.map { entity ->
+                        SongDto(
+                            id = entity.songId,
+                            title = entity.title,
+                            artist = entity.artist,
+                            durationMs = entity.durationMs
                         )
+                    }
+                    val playlist = com.turkcell.lyraapp.data.playlists.PlaylistWithSongsDto(
+                        id = "downloads",
+                        name = "İndirilenler",
+                        description = "Çevrimdışı indirilen şarkılar",
+                        songs = songs
                     )
+                    _uiState.update { it.copy(isLoading = false, playlist = playlist) }
                 }
+            } else {
+                libraryRepository.getPlaylistDetail(id)
+                    .onSuccess { detail ->
+                        _uiState.update { it.copy(isLoading = false, playlist = detail) }
+                    }
+                    .onFailure { error ->
+                        _uiState.update { it.copy(isLoading = false, errorMessage = error.message) }
+                        _effect.send(
+                            PlaylistDetailEffect.ShowError(
+                                error.message ?: "Çalma listesi detayları yüklenemedi."
+                            )
+                        )
+                    }
+            }
         }
     }
 
@@ -181,19 +249,23 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun removeSong(songId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            libraryRepository.removeSongFromPlaylist(playlistId, songId)
-                .onSuccess {
-                    loadDetail(playlistId)
-                }
-                .onFailure { error ->
-                    _uiState.update { it.copy(isLoading = false) }
-                    _effect.send(
-                        PlaylistDetailEffect.ShowError(
-                            error.message ?: "Şarkı çalma listesinden çıkarılamadı."
+            if (playlistId == "downloads") {
+                offlineManager.deleteSong(songId)
+            } else {
+                _uiState.update { it.copy(isLoading = true) }
+                libraryRepository.removeSongFromPlaylist(playlistId, songId)
+                    .onSuccess {
+                        loadDetail(playlistId)
+                    }
+                    .onFailure { error ->
+                        _uiState.update { it.copy(isLoading = false) }
+                        _effect.send(
+                            PlaylistDetailEffect.ShowError(
+                                error.message ?: "Şarkı çalma listesinden çıkarılamadı."
+                            )
                         )
-                    )
-                }
+                    }
+            }
         }
     }
 

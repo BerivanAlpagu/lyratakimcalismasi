@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.turkcell.lyraapp.data.local.FavoriteSong
 import com.turkcell.lyraapp.data.local.FavoritesStore
+import com.turkcell.lyraapp.data.local.OfflineManager
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -20,9 +21,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
     private val globalPlayerManager: GlobalPlayerManager,
     private val favoritesStore: FavoritesStore,
+    private val offlineManager: OfflineManager,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -41,10 +43,13 @@ class PlayerViewModel @Inject constructor(
     val uiState: StateFlow<PlayerUiState> = combine(
         globalPlayerManager.playerState,
         favoritesStore.favoriteSongIds,
+        offlineManager.downloadedSongIds,
+        offlineManager.downloadingSongIds,
         _dominantColor,
-    ) { state, favoriteIds, dominantColor ->
+    ) { state, favoriteIds, downloadedIds, downloadingIds, dominantColor ->
+        val currentSongId = state.songId ?: songId
         PlayerUiState(
-            songId = state.songId ?: songId,
+            songId = currentSongId,
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
             coverUrl = if (state.songId == null || state.songId == this@PlayerViewModel.songId) coverUrl else "",
@@ -57,10 +62,12 @@ class PlayerViewModel @Inject constructor(
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
             errorMessage = state.errorMessage,
-            isFavorite = favoriteIds.contains(state.songId ?: songId),
+            isFavorite = favoriteIds.contains(currentSongId),
             dominantColor = dominantColor,
             canSkipNext = state.canSkipNext,
             canSkipPrevious = state.canSkipPrevious,
+            isDownloaded = downloadedIds.contains(currentSongId),
+            isDownloading = downloadingIds.contains(currentSongId),
         )
     }.stateIn(
         scope = viewModelScope,
@@ -85,6 +92,28 @@ class PlayerViewModel @Inject constructor(
 
     fun onIntent(intent: PlayerIntent) {
         when (intent) {
+            PlayerIntent.ToggleDownload -> {
+                viewModelScope.launch {
+                    val currentSongId = uiState.value.songId
+                    val currentTitle = uiState.value.title
+                    val currentArtist = uiState.value.artist
+                    val currentDurationMs = uiState.value.durationMs
+                    if (uiState.value.isDownloaded) {
+                        offlineManager.deleteSong(currentSongId)
+                    } else {
+                        val result = offlineManager.downloadSong(
+                            songId = currentSongId,
+                            title = currentTitle,
+                            artist = currentArtist,
+                            durationMs = currentDurationMs
+                        )
+                        if (result.isFailure) {
+                            val errorMsg = result.exceptionOrNull()?.message ?: "İndirme başarısız oldu."
+                            android.widget.Toast.makeText(context, errorMsg, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
             PlayerIntent.TogglePlayPause -> globalPlayerManager.togglePlayPause()
             PlayerIntent.Restart -> globalPlayerManager.restart()
             PlayerIntent.SeekForward -> globalPlayerManager.seekBy(SEEK_STEP_MS)

@@ -79,7 +79,12 @@ class LibraryViewModel @Inject constructor(
 
             result
                 .onSuccess { dtos ->
-                    val uiModels = dtos.map { dto ->
+                    val downloadPlaylist = PlaylistUiModel(
+                        id = "downloads",
+                        name = "İndirilenler",
+                        description = "Çevrimdışı indirilen şarkılar"
+                    )
+                    val uiModels = listOf(downloadPlaylist) + dtos.map { dto ->
                         PlaylistUiModel(
                             id = dto.id,
                             name = dto.name,

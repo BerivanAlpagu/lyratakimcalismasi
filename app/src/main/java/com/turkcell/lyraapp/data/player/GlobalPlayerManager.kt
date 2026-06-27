@@ -31,11 +31,13 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.Bitmap
 import java.io.ByteArrayOutputStream
 import androidx.media3.common.C
+import com.turkcell.lyraapp.data.local.OfflineManager
 
 @Singleton
 class GlobalPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository,
+    private val offlineManager: OfflineManager,
 ) {
     /** LyraMediaService tarafından MediaSession'a bağlanmak için erişilebilir. */
     val player: ExoPlayer = ExoPlayer.Builder(context).build()
@@ -162,6 +164,8 @@ class GlobalPlayerManager @Inject constructor(
             return
         }
 
+        player.stop()
+
         _playerState.update {
             it.copy(
                 songId = songId,
@@ -183,6 +187,20 @@ class GlobalPlayerManager @Inject constructor(
             context.startService(serviceIntent)
         } catch (e: Exception) {
             ContextCompat.startForegroundService(context, serviceIntent)
+        }
+
+        if (offlineManager.isSongDownloaded(songId)) {
+            val localPath = offlineManager.getLocalFileUri(songId)
+            playResolvedSong(
+                PlaybackDecision.Song(
+                    songId = songId,
+                    title = title,
+                    artist = artist,
+                    streamUrl = localPath
+                )
+            )
+            startPolling()
+            return
         }
 
         scope.launch {
@@ -274,7 +292,8 @@ class GlobalPlayerManager @Inject constructor(
             .setMediaMetadata(mediaMetadata)
             .build()
 
-        player.setMediaItem(mediaItem)
+        player.setMediaItem(mediaItem, true)
+        player.seekTo(0L)
         player.prepare()
         player.playWhenReady = true
         startPolling()

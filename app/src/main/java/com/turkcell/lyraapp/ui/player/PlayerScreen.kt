@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -133,7 +134,10 @@ fun PlayerScreen(
                 title = state.title,
                 artist = state.artist,
                 isFavorite = state.isFavorite,
+                isDownloaded = state.isDownloaded,
+                isDownloading = state.isDownloading,
                 onToggleFavorite = { onIntent(PlayerIntent.ToggleFavorite) },
+                onToggleDownload = { onIntent(PlayerIntent.ToggleDownload) },
             )
 
             Spacer(Modifier.height(20.dp))
@@ -269,7 +273,10 @@ private fun TrackInfo(
     title: String,
     artist: String,
     isFavorite: Boolean,
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
     onToggleFavorite: () -> Unit,
+    onToggleDownload: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -294,6 +301,25 @@ private fun TrackInfo(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+
+        IconButton(onClick = onToggleDownload) {
+            if (isDownloading) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = LyraIcons.Download,
+                    contentDescription = if (isDownloaded) "Cihazdan sil" else "Cihaza indir",
+                    tint = if (isDownloaded) DarkPrimary else Color.White.copy(alpha = 0.7f),
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
 
         IconButton(onClick = onToggleFavorite) {
             Icon(

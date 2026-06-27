@@ -11,11 +11,14 @@ data class FavoriteSongUiModel(
 data class FavoritesUiState(
     val favorites: List<FavoriteSongUiModel> = emptyList(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val downloadedSongIds: Set<String> = emptySet(),
+    val downloadingSongIds: Set<String> = emptySet()
 )
 
 sealed interface FavoritesIntent {
     data object LoadFavorites : FavoritesIntent
+    data object DownloadFavoritesClicked : FavoritesIntent
 }
 
 sealed interface FavoritesEffect {

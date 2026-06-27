@@ -128,6 +128,7 @@ fun PlaylistDetailScreen(
                         // Top Navigation bar inside scrollable list
                         item {
                             DetailTopBar(
+                                isSystemPlaylist = playlist.id == "downloads",
                                 onBackClick = { onIntent(PlaylistDetailIntent.BackClicked) },
                                 onDeletePlaylist = { onIntent(PlaylistDetailIntent.DeletePlaylistClicked) }
                             )
@@ -146,7 +147,13 @@ fun PlaylistDetailScreen(
 
                         // Action buttons
                         item {
+                            val songs = playlist.songs
+                            val isPlaylistDownloaded = songs.isNotEmpty() && songs.all { state.downloadedSongIds.contains(it.id) }
+                            val isPlaylistDownloading = songs.any { state.downloadingSongIds.contains(it.id) }
                             ActionRow(
+                                isDownloaded = isPlaylistDownloaded,
+                                isDownloading = isPlaylistDownloading,
+                                isSystemPlaylist = playlist.id == "downloads",
                                 onPlayClick = {
                                     if (playlist.songs.isNotEmpty()) {
                                         val first = playlist.songs.first()
@@ -155,6 +162,9 @@ fun PlaylistDetailScreen(
                                 },
                                 onAddClick = {
                                     onIntent(PlaylistDetailIntent.AddSongClicked)
+                                },
+                                onDownloadClick = {
+                                    onIntent(PlaylistDetailIntent.DownloadPlaylistClicked)
                                 }
                             )
                         }
@@ -170,6 +180,7 @@ fun PlaylistDetailScreen(
                                 isFirst = index == 0,
                                 isLast = index == playlist.songs.lastIndex,
                                 isFavorite = state.favoriteSongIds.contains(song.id),
+                                isSystemPlaylist = playlist.id == "downloads",
                                 onClick = {
                                     onIntent(PlaylistDetailIntent.SongClicked(song.id, song.title, song.artist))
                                 },
@@ -237,6 +248,7 @@ fun PlaylistDetailScreen(
 
 @Composable
 private fun DetailTopBar(
+    isSystemPlaylist: Boolean,
     onBackClick: () -> Unit,
     onDeletePlaylist: () -> Unit
 ) {
@@ -257,26 +269,30 @@ private fun DetailTopBar(
                 tint = MaterialTheme.colorScheme.onSurface
             )
         }
-        Box {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(
-                    imageVector = LyraIcons.MoreVert,
-                    contentDescription = "Daha Fazla",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+        if (!isSystemPlaylist) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = LyraIcons.MoreVert,
+                        contentDescription = "Daha Fazla",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Çalma Listesini Sil") },
+                        onClick = {
+                            menuExpanded = false
+                            onDeletePlaylist()
+                        }
+                    )
+                }
             }
-            DropdownMenu(
-                expanded = menuExpanded,
-                onDismissRequest = { menuExpanded = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Çalma Listesini Sil") },
-                    onClick = {
-                        menuExpanded = false
-                        onDeletePlaylist()
-                    }
-                )
-            }
+        } else {
+            Spacer(modifier = Modifier.size(48.dp))
         }
     }
 }
@@ -353,8 +369,12 @@ private fun PlaylistHeader(
 
 @Composable
 private fun ActionRow(
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    isSystemPlaylist: Boolean,
     onPlayClick: () -> Unit,
     onAddClick: () -> Unit,
+    onDownloadClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -371,22 +391,32 @@ private fun ActionRow(
             )
         }
         Spacer(modifier = Modifier.width(16.dp))
-        IconButton(onClick = { }) {
-            Icon(
-                imageVector = LyraIcons.Download,
-                contentDescription = "İndir",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(26.dp)
-            )
+        IconButton(onClick = onDownloadClick) {
+            if (isDownloading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    imageVector = LyraIcons.Download,
+                    contentDescription = "İndir",
+                    tint = if (isDownloaded) Color(0xFFFFAFD2) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.width(16.dp))
-        IconButton(onClick = onAddClick) {
-            Icon(
-                imageVector = LyraIcons.Add,
-                contentDescription = "Ekle",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(26.dp)
-            )
+        if (!isSystemPlaylist) {
+            Spacer(modifier = Modifier.width(16.dp))
+            IconButton(onClick = onAddClick) {
+                Icon(
+                    imageVector = LyraIcons.Add,
+                    contentDescription = "Ekle",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.weight(1f))
         IconButton(onClick = { }) {
@@ -424,6 +454,7 @@ private fun SongItem(
     isFirst: Boolean,
     isLast: Boolean,
     isFavorite: Boolean,
+    isSystemPlaylist: Boolean,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onRemoveSong: () -> Unit,
@@ -440,12 +471,14 @@ private fun SongItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Reorder handle indicator
-        Text(
-            text = "☰",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-            modifier = Modifier.padding(end = 8.dp)
-        )
+        if (!isSystemPlaylist) {
+            Text(
+                text = "☰",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.padding(end = 8.dp)
+            )
+        }
         // Thumbnail or index
         Text(
             text = index.toString(),
@@ -504,13 +537,13 @@ private fun SongItem(
                 onDismissRequest = { menuExpanded = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Çalma Listesinden Kaldır") },
+                    text = { Text(if (isSystemPlaylist) "Cihazdan Sil" else "Çalma Listesinden Kaldır") },
                     onClick = {
                         menuExpanded = false
                         onRemoveSong()
                     }
                 )
-                if (!isFirst) {
+                if (!isSystemPlaylist && !isFirst) {
                     DropdownMenuItem(
                         text = { Text("Yukarı Taşı") },
                         onClick = {
@@ -519,7 +552,7 @@ private fun SongItem(
                         }
                     )
                 }
-                if (!isLast) {
+                if (!isSystemPlaylist && !isLast) {
                     DropdownMenuItem(
                         text = { Text("Aşağı Taşı") },
                         onClick = {
