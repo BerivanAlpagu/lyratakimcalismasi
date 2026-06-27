@@ -23,6 +23,14 @@
             "description": "Endpoints scoped to the signed-in user (require a Bearer access token)."
         },
         {
+            "name": "memberships",
+            "description": "Premium plans and purchase (mock card payment). The price catalog is public; checkout requires a Bearer access token."
+        },
+        {
+            "name": "playback",
+            "description": "Server-authoritative \"what do I play next?\". Free users get an ad once every 3 songs; premium users never do."
+        },
+        {
             "name": "songs",
             "description": "Song catalog"
         },
@@ -139,7 +147,7 @@
                     "auth"
                 ],
                 "summary": "Verify an OTP and obtain access + refresh tokens",
-                "description": "Verifies the OTP for a phone number. Because the SMS system is mocked, the following codes are **ALWAYS valid**:\n\n- `280600`\n- `260702`\n- `250506`\n- `101000`\n- `346134`\n- `123456`\n\nAny other code returns **401**. On success the user is created on first login (passwordless signup) and a JWT access token plus an opaque refresh token are returned. Send the access token as `Authorization: Bearer <token>` to the `/api/v1/me/*` endpoints.",
+                "description": "Verifies the OTP for a phone number. Because the SMS system is mocked, the following codes are **ALWAYS valid**:\n\n- `280600`\n- `260702`\n- `250506`\n- `101000`\n- `346134`\n- `123456`\n\nAny other code returns **401**. On success the user is created on first login (passwordless signup) and a JWT access token plus an opaque refresh token are returned. Send the access token as `Authorization: Bearer \u003Ctoken\u003E` to the `/api/v1/me/*` endpoints.",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1009,6 +1017,335 @@
                 }
             }
         },
+        "/api/v1/memberships/plans": {
+            "get": {
+                "tags": [
+                    "memberships"
+                ],
+                "summary": "Premium price catalog",
+                "description": "Lists the purchasable premium plans. **recurring** auto-renews monthly at 139₺; **one-time** is a single 30-day month at 159₺ with no renewal. Prices are also given in kuruş (1₺ = 100 kuruş).",
+                "responses": {
+                    "200": {
+                        "description": "Available plans",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MembershipPlan"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/memberships/checkout": {
+            "post": {
+                "tags": [
+                    "memberships"
+                ],
+                "summary": "Buy a premium membership (mock card payment)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Charges a card (mock — no real payment provider) and, on approval, activates a premium membership for the calling user. The outcome is decided entirely by the card number. **Test cards:**\n\n| Card number | Result |\n| --- | --- |\n| `4242 4242 4242 4242` | ✅ Approved |\n| `4000 0000 0000 0002` | ❌ Declined (402) |\n\nAny other card number is also declined. Pick the plan with `plan`: `recurring` (139₺/ay) or `one-time` (159₺).",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "plan",
+                                    "card"
+                                ],
+                                "properties": {
+                                    "plan": {
+                                        "type": "string",
+                                        "enum": [
+                                            "one-time",
+                                            "recurring"
+                                        ],
+                                        "example": "recurring",
+                                        "description": "Which plan to purchase."
+                                    },
+                                    "card": {
+                                        "type": "object",
+                                        "required": [
+                                            "number",
+                                            "expMonth",
+                                            "expYear",
+                                            "cvc"
+                                        ],
+                                        "properties": {
+                                            "number": {
+                                                "type": "string",
+                                                "example": "4242 4242 4242 4242",
+                                                "description": "Use `4242 4242 4242 4242` for success, `4000 0000 0000 0002` for a decline."
+                                            },
+                                            "expMonth": {
+                                                "type": "integer",
+                                                "minimum": 1,
+                                                "maximum": 12,
+                                                "example": 12
+                                            },
+                                            "expYear": {
+                                                "type": "integer",
+                                                "example": 2030
+                                            },
+                                            "cvc": {
+                                                "type": "string",
+                                                "example": "123",
+                                                "description": "3–4 digits."
+                                            },
+                                            "holderName": {
+                                                "type": "string",
+                                                "example": "Halit Kalaycı"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Payment approved, membership activated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "payment": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "transactionId": {
+                                                            "type": "string",
+                                                            "example": "txn_9f2a1b3c4d5e6f70"
+                                                        },
+                                                        "amountKurus": {
+                                                            "type": "integer",
+                                                            "example": 13900
+                                                        },
+                                                        "currency": {
+                                                            "type": "string",
+                                                            "example": "TRY"
+                                                        }
+                                                    }
+                                                },
+                                                "membership": {
+                                                    "$ref": "#/components/schemas/Membership"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid plan or card details",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "402": {
+                        "description": "Payment declined",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/me/playback/next": {
+            "post": {
+                "tags": [
+                    "playback"
+                ],
+                "summary": "Resolve the next playable item (song, or an ad first)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Call this right before playing a song instead of minting a stream URL directly. The server records the play and decides what to serve:\n\n- **Premium users** always get `type: \"song\"`.\n- **Free users** get `type: \"ad\"` once every 3 songs (counter kept server-side). The ad response **also** includes the song, so the client queues `[ad, song]`; after the ad call `/playback/ad-complete`.\n\nBecause this records the play, clients using it should **not** also call `POST /api/v1/me/plays`.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "songId"
+                                ],
+                                "properties": {
+                                    "songId": {
+                                        "type": "string",
+                                        "example": "s_neon-tide"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Either a song to play, or an ad followed by the song",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "oneOf": [
+                                                {
+                                                    "$ref": "#/components/schemas/PlaybackSong"
+                                                },
+                                                {
+                                                    "$ref": "#/components/schemas/PlaybackAd"
+                                                }
+                                            ],
+                                            "discriminator": {
+                                                "propertyName": "type"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Song not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/me/playback/ad-complete": {
+            "post": {
+                "tags": [
+                    "playback"
+                ],
+                "summary": "Mark a served ad as watched through",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Report that the ad from a `type: \"ad\"` response finished playing. Records the impression as completed (analytics). Pass the `impressionId` from that response.",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "impressionId"
+                                ],
+                                "properties": {
+                                    "impressionId": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "3f9a1c2b-4d5e-6f70-8a9b-0c1d2e3f4a5b"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Impression marked complete",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "completed": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Ad impression not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/songs": {
             "get": {
                 "tags": [
@@ -1128,8 +1465,13 @@
                 "tags": [
                     "songs"
                 ],
-                "summary": "Mint a short-lived signed stream URL",
-                "description": "Returns a URL the client passes directly to ExoPlayer. The signature is an HMAC-SHA256 over `<songId>:<expiresAt>`; TTL is 300 seconds by default. Mint right before playback rather than caching alongside list responses.",
+                "summary": "Mint a short-lived signed stream URL (premium only)",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Returns a URL the client passes directly to ExoPlayer. The signature is an HMAC-SHA256 over `\u003CsongId\u003E:\u003CexpiresAt\u003E`; TTL is 300 seconds by default. Mint right before playback rather than caching alongside list responses.\n\n**Premium only.** This bypasses ad gating, so free-tier users get 403 and must use `POST /api/v1/me/playback/next` instead.",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/SongId"
@@ -1162,6 +1504,26 @@
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Free tier — use /api/v1/me/playback/next",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
                                 }
                             }
                         }
@@ -1415,7 +1777,7 @@
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT",
-                "description": "Paste the `accessToken` from `POST /api/v1/auth/otp/verify`. It is sent as `Authorization: Bearer <token>`."
+                "description": "Paste the `accessToken` from `POST /api/v1/auth/otp/verify`. It is sent as `Authorization: Bearer \u003Ctoken\u003E`."
             }
         },
         "parameters": {
@@ -1465,6 +1827,97 @@
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    }
+                }
+            },
+            "Ad": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "ad_acme-coffee"
+                    },
+                    "title": {
+                        "type": "string",
+                        "example": "Acme Coffee — güne enerjik başla"
+                    },
+                    "advertiser": {
+                        "type": "string",
+                        "example": "Acme Coffee"
+                    },
+                    "durationMs": {
+                        "type": "integer",
+                        "example": 6000
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "example": "audio/wav"
+                    }
+                }
+            },
+            "StreamLink": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "example": "audio/wav"
+                    }
+                }
+            },
+            "PlaybackSong": {
+                "type": "object",
+                "description": "Play the song directly (premium, or no ad due yet).",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "song"
+                        ],
+                        "example": "song"
+                    },
+                    "song": {
+                        "$ref": "#/components/schemas/Song"
+                    },
+                    "stream": {
+                        "$ref": "#/components/schemas/StreamLink"
+                    }
+                }
+            },
+            "PlaybackAd": {
+                "type": "object",
+                "description": "Play the ad first, then the included song.",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "ad"
+                        ],
+                        "example": "ad"
+                    },
+                    "ad": {
+                        "$ref": "#/components/schemas/Ad"
+                    },
+                    "adStream": {
+                        "$ref": "#/components/schemas/StreamLink"
+                    },
+                    "impressionId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Pass to /playback/ad-complete once the ad finishes."
+                    },
+                    "song": {
+                        "$ref": "#/components/schemas/Song"
+                    },
+                    "stream": {
+                        "$ref": "#/components/schemas/StreamLink"
                     }
                 }
             },
@@ -1554,6 +2007,100 @@
                         "type": "boolean",
                         "example": false,
                         "description": "True once firstName, lastName and birthDate are all set."
+                    },
+                    "membership": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Membership"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "The active premium membership (type + expiry), or null on the free tier. Returned by login (`/auth/otp/verify`) and `GET /api/v1/me`."
+                    }
+                }
+            },
+            "MembershipPlan": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "example": "recurring-monthly"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "one-time",
+                            "recurring"
+                        ],
+                        "example": "recurring"
+                    },
+                    "name": {
+                        "type": "string",
+                        "example": "Premium (Aylık Yenilenen)"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "priceKurus": {
+                        "type": "integer",
+                        "example": 13900,
+                        "description": "Price in kuruş (1₺ = 100)."
+                    },
+                    "price": {
+                        "type": "integer",
+                        "example": 139,
+                        "description": "Price in whole liras."
+                    },
+                    "currency": {
+                        "type": "string",
+                        "example": "TRY"
+                    },
+                    "durationDays": {
+                        "type": "integer",
+                        "example": 30
+                    },
+                    "autoRenew": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                }
+            },
+            "Membership": {
+                "type": "object",
+                "properties": {
+                    "planId": {
+                        "type": "string",
+                        "example": "recurring-monthly"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "one-time",
+                            "recurring"
+                        ],
+                        "example": "recurring",
+                        "description": "Üyelik türü."
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "active",
+                            "expired"
+                        ],
+                        "example": "active"
+                    },
+                    "autoRenew": {
+                        "type": "boolean",
+                        "example": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Sona erme tarihi — when premium access ends."
                     }
                 }
             },
