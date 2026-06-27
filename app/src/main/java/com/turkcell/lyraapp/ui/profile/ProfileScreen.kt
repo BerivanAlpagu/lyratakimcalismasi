@@ -28,7 +28,8 @@ import kotlinx.coroutines.flow.collectLatest
 fun ProfileRoute(
     viewModel: ProfileViewModel = hiltViewModel(),
     onShowSnackbar: (String) -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToPremium: (String?) -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -37,6 +38,7 @@ fun ProfileRoute(
             when (effect) {
                 is ProfileEffect.ShowError -> onShowSnackbar(effect.message)
                 is ProfileEffect.NavigateToLogin -> onNavigateToLogin()
+                is ProfileEffect.NavigateToPremium -> onNavigateToPremium(effect.planType)
             }
         }
     }
@@ -71,6 +73,15 @@ fun ProfileScreen(
                 onCancel = { onIntent(ProfileIntent.DismissEditSheet) }
             )
         }
+    }
+
+    if (uiState.showRenewalReminder) {
+        RenewalReminderDialog(
+            daysRemaining = uiState.membershipDaysRemaining ?: 3,
+            onMonthlyClick = { onIntent(ProfileIntent.MonthlyRenewalClicked) },
+            onOneTimeClick = { onIntent(ProfileIntent.OneTimeRenewalClicked) },
+            onDismiss = { onIntent(ProfileIntent.DismissRenewalReminder) },
+        )
     }
     
     Scaffold(
@@ -120,6 +131,7 @@ fun ProfileScreen(
                 ProfileContent(
                     user = uiState.profile,
                     isDarkMode = uiState.isDarkMode,
+                    membershipDaysRemaining = uiState.membershipDaysRemaining,
                     textPrimary = textPrimary,
                     textSecondary = textSecondary,
                     onIntent = onIntent
@@ -133,6 +145,7 @@ fun ProfileScreen(
 private fun ProfileContent(
     user: UserProfile,
     isDarkMode: Boolean,
+    membershipDaysRemaining: Int?,
     textPrimary: Color,
     textSecondary: Color,
     onIntent: (ProfileIntent) -> Unit
@@ -181,7 +194,7 @@ private fun ProfileContent(
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "${user.username} · ${user.status}",
+            text = "${user.username} · ${user.status}${membershipDaysRemaining?.let { " · $it gün" } ?: ""}",
             color = textSecondary,
             fontSize = 14.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -199,7 +212,15 @@ private fun ProfileContent(
             StatItem(value = user.followingCount.toString(), label = "Takip", textPrimary, textSecondary)
         }
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
+
+        PremiumStatusCard(
+            user = user,
+            daysRemaining = membershipDaysRemaining,
+            onClick = { onIntent(ProfileIntent.PremiumCardClicked) },
+        )
+
+        Spacer(modifier = Modifier.height(18.dp))
         
         // Settings List
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -263,6 +284,137 @@ private fun ProfileContent(
             }
         }
     }
+}
+
+@Composable
+private fun PremiumStatusCard(
+    user: UserProfile,
+    daysRemaining: Int?,
+    onClick: () -> Unit,
+) {
+    val isPremium = user.membership != null && user.status == "Premium"
+    val title = if (isPremium) {
+        "Premium${daysRemaining?.let { " · $it gün kaldı" } ?: ""}"
+    } else {
+        "LyraApp Premium"
+    }
+    val subtitle = if (isPremium) {
+        "Yenile ya da aboneliğe geç"
+    } else {
+        "Reklamsız ve sınırsız dinlemeye geç"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .height(68.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(Brush.linearGradient(listOf(Color(0xFFFFA6C8), Color(0xFF8C5B3E))))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.24f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = LyraIcons.Check,
+                contentDescription = null,
+                tint = Color(0xFF7B2343),
+            )
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(start = 14.dp)
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+            )
+            Text(
+                text = subtitle,
+                color = Color.White,
+                fontSize = 13.sp,
+            )
+        }
+        Icon(
+            imageVector = LyraIcons.KeyboardArrowRight,
+            contentDescription = null,
+            tint = Color.White,
+        )
+    }
+}
+
+@Composable
+private fun RenewalReminderDialog(
+    daysRemaining: Int,
+    onMonthlyClick: () -> Unit,
+    onOneTimeClick: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Color(0xFF46383D),
+        titleContentColor = Color.White,
+        textContentColor = Color.White,
+        icon = {
+            Icon(
+                imageVector = LyraIcons.Restart,
+                contentDescription = null,
+                tint = Color(0xFFFFA6C8),
+            )
+        },
+        title = {
+            Text(
+                text = "Premium'un $daysRemaining gün sonra bitiyor",
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Tek seferlik erişimin sona ermek üzere. Kesintisiz dinlemeye devam etmek için yenile ya da aylık aboneliğe geç.",
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    color = Color.White,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.height(18.dp))
+                Button(
+                    onClick = onMonthlyClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFFFA6C8),
+                        contentColor = Color(0xFF4A1230),
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Aylık aboneliğe geç")
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onOneTimeClick,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("30 gün yenile")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Daha sonra", color = Color.White)
+            }
+        },
+    )
 }
 
 @Composable

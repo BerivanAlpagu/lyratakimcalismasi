@@ -16,6 +16,9 @@ enum class LyraDestination(val route: String) {
     Library("library"),
     Favorites("favorites"),
     Profile("profile"),
+    Premium("premium"),
+    Payment("payment"),
+    PaymentSuccess("payment_success"),
 
     /**
      * Oynatıcı ekranı. Üst düzey sekme değildir (alt çubuk gösterilmez); şarkı kimliği yol

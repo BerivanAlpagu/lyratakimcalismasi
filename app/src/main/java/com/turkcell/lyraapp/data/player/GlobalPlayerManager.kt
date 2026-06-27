@@ -6,8 +6,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.turkcell.lyraapp.data.me.MeApi
-import com.turkcell.lyraapp.data.me.RecordPlayDto
 import com.turkcell.lyraapp.data.songs.SongDto
 import com.turkcell.lyraapp.ui.player.PlayerUiState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -32,7 +30,6 @@ import javax.inject.Singleton
 class GlobalPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository,
-    private val meApi: MeApi
 ) {
     /** LyraMediaService tarafından MediaSession'a bağlanmak için erişilebilir. */
     val player: ExoPlayer = ExoPlayer.Builder(context).build()
@@ -40,6 +37,8 @@ class GlobalPlayerManager @Inject constructor(
     private var pollJob: Job? = null
     private var playlistQueue: List<SongDto> = emptyList()
     private var currentSongIndex: Int = -1
+    private var songAfterAd: PlaybackDecision.Song? = null
+    private var currentAdImpressionId: String? = null
 
     // PlayerUiState includes title, artist, isPlaying, duration, etc.
     // To also carry the songId and artwork colors for the Home screen NowPlayingBar,
@@ -67,7 +66,18 @@ class GlobalPlayerManager @Inject constructor(
                 _playerState.update { it.copy(isLoading = false) }
             }
             if (playbackState == Player.STATE_ENDED) {
-                playNext()
+                val pendingSong = songAfterAd
+                val impressionId = currentAdImpressionId
+                if (pendingSong != null && impressionId != null) {
+                    songAfterAd = null
+                    currentAdImpressionId = null
+                    scope.launch {
+                        playerRepository.completeAd(impressionId)
+                        playResolvedSong(pendingSong)
+                    }
+                } else {
+                    playNext()
+                }
             }
         }
 
@@ -157,32 +167,11 @@ class GlobalPlayerManager @Inject constructor(
         }
 
         scope.launch {
-            playerRepository.getStreamUrl(songId)
-                .onSuccess { url ->
-                    val dummyCoverUrl = "https://picsum.photos/seed/$songId/300/300"
-                    val mediaMetadata = MediaMetadata.Builder()
-                        .setTitle(title)
-                        .setArtist(artist)
-                        .setDisplayTitle(title)
-                        .setArtworkUri(Uri.parse(dummyCoverUrl))
-                        .build()
-
-                    val mediaItem = MediaItem.Builder()
-                        .setMediaId(songId)
-                        .setUri(Uri.parse(url))
-                        .setMediaMetadata(mediaMetadata)
-                        .build()
-
-                    player.setMediaItem(mediaItem)
-                    player.prepare()
-                    player.playWhenReady = true
-                    startPolling()
-
-                    // Record play
-                    try {
-                        meApi.recordPlay(RecordPlayDto(songId))
-                    } catch (e: Exception) {
-                        // Ignore recording failure
+            playerRepository.resolveNextPlayback(songId)
+                .onSuccess { decision ->
+                    when (decision) {
+                        is PlaybackDecision.Song -> playResolvedSong(decision)
+                        is PlaybackDecision.AdThenSong -> playAdThenSong(decision)
                     }
                 }
                 .onFailure { error ->
@@ -196,14 +185,89 @@ class GlobalPlayerManager @Inject constructor(
         }
     }
 
+    private fun playAdThenSong(decision: PlaybackDecision.AdThenSong) {
+        songAfterAd = PlaybackDecision.Song(
+            songId = decision.songId,
+            title = decision.title,
+            artist = decision.artist,
+            streamUrl = decision.streamUrl,
+        )
+        currentAdImpressionId = decision.impressionId
+        _playerState.update {
+            it.copy(
+                songId = decision.adId,
+                title = decision.adTitle,
+                artist = decision.advertiser,
+                isLoading = true,
+                errorMessage = null,
+                positionMs = 0L,
+                durationMs = 0L,
+                bufferedMs = 0L,
+                hasEnded = false,
+            )
+        }
+        playMedia(
+            mediaId = decision.adId,
+            title = decision.adTitle,
+            artist = decision.advertiser,
+            url = decision.adStreamUrl,
+        )
+    }
+
+    private fun playResolvedSong(decision: PlaybackDecision.Song) {
+        _playerState.update {
+            it.copy(
+                songId = decision.songId,
+                title = decision.title,
+                artist = decision.artist,
+                isLoading = true,
+                errorMessage = null,
+                positionMs = 0L,
+                durationMs = 0L,
+                bufferedMs = 0L,
+                hasEnded = false,
+            )
+        }
+        playMedia(
+            mediaId = decision.songId,
+            title = decision.title,
+            artist = decision.artist,
+            url = decision.streamUrl,
+        )
+    }
+
+    private fun playMedia(
+        mediaId: String,
+        title: String,
+        artist: String,
+        url: String,
+    ) {
+        val dummyCoverUrl = "https://picsum.photos/seed/$mediaId/300/300"
+        val mediaMetadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setDisplayTitle(title)
+            .setArtworkUri(Uri.parse(dummyCoverUrl))
+            .build()
+
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setUri(Uri.parse(url))
+            .setMediaMetadata(mediaMetadata)
+            .build()
+
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.playWhenReady = true
+        startPolling()
+    }
+
     fun togglePlayPause() {
         if (player.isPlaying) player.pause() else player.play()
     }
 
     fun skipToNext() {
-        if (player.hasNextMediaItem()) {
-            player.seekToNextMediaItem()
-        }
+        playNext()
     }
 
     fun skipToPrevious() {

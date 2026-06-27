@@ -46,8 +46,21 @@ data class AuthSessionDto(
 data class UserDto(
     val id: String,
     val phone: String,
+    val displayName: String? = null,
     val firstName: String? = null,
     val lastName: String? = null,
     val birthDate: String? = null,
-    val profileCompleted: Boolean
+    val createdAt: String? = null,
+    val profileCompleted: Boolean,
+    val membership: MembershipDto? = null,
+)
+
+@Serializable
+data class MembershipDto(
+    val planId: String,
+    val type: String,
+    val status: String,
+    val autoRenew: Boolean,
+    val startedAt: String? = null,
+    val expiresAt: String,
 )

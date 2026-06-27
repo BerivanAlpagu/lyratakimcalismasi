@@ -24,8 +24,12 @@ import com.turkcell.lyraapp.ui.auth.otp.OtpRoute
 import com.turkcell.lyraapp.ui.auth.profile.ProfileCompleteRoute
 import com.turkcell.lyraapp.ui.home.HomeRoute
 import com.turkcell.lyraapp.ui.library.LibraryRoute
+import com.turkcell.lyraapp.ui.payment.PaymentRoute
+import com.turkcell.lyraapp.ui.payment.PaymentSuccessRoute
 import com.turkcell.lyraapp.ui.player.PlayerRoute
 import com.turkcell.lyraapp.ui.player.PlayerViewModel
+import com.turkcell.lyraapp.ui.premium.PremiumRoute
+import com.turkcell.lyraapp.ui.premium.PremiumViewModel
 import com.turkcell.lyraapp.ui.search.SearchRoute
 
 /**
@@ -163,7 +167,55 @@ fun LyraNavHost(
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onNavigateToPremium = { planType ->
+                        navController.navigate(premiumRoute(planType.orEmpty()))
+                    },
+                )
+            }
+
+            composable(
+                route = PREMIUM_ROUTE_PATTERN,
+                arguments = listOf(
+                    navArgument(PremiumViewModel.ARG_PLAN_TYPE) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) {
+                PremiumRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPayment = { planType ->
+                        navController.navigate(paymentRoute(planType.apiValue))
+                    },
+                )
+            }
+
+            composable(
+                route = PAYMENT_ROUTE_PATTERN,
+                arguments = listOf(
+                    navArgument(PremiumViewModel.ARG_PLAN_TYPE) { type = NavType.StringType },
+                ),
+            ) {
+                PaymentRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToSuccess = {
+                        navController.navigate(LyraDestination.PaymentSuccess.route) {
+                            popUpTo(LyraDestination.Premium.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(LyraDestination.PaymentSuccess.route) {
+                PaymentSuccessRoute(
+                    onStartListening = {
+                        navController.navigate(LyraDestination.Home.route) {
+                            popUpTo(LyraDestination.Home.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -211,6 +263,12 @@ private const val PLAYER_ROUTE_PATTERN =
             "${PlayerViewModel.ARG_PLAYLIST_NAME}={${PlayerViewModel.ARG_PLAYLIST_NAME}}&" +
             "${PlayerViewModel.ARG_IS_FAVORITE}={${PlayerViewModel.ARG_IS_FAVORITE}}"
 
+private const val PREMIUM_ROUTE_PATTERN =
+    "premium?${PremiumViewModel.ARG_PLAN_TYPE}={${PremiumViewModel.ARG_PLAN_TYPE}}"
+
+private const val PAYMENT_ROUTE_PATTERN =
+    "payment/{${PremiumViewModel.ARG_PLAN_TYPE}}"
+
 /**
  * Bir şarkı için gerçek oynatıcı yolunu üretir. Tüm bileşenler URL-encode edilir; böylece
  * boşluk/özel karakter içeren başlık ve sanatçı adları route'u bozmaz.
@@ -229,6 +287,12 @@ private fun playerRoute(
             "${PlayerViewModel.ARG_COVER_URL}=${Uri.encode(coverUrl)}&" +
             "${PlayerViewModel.ARG_PLAYLIST_NAME}=${Uri.encode(playlistName)}&" +
             "${PlayerViewModel.ARG_IS_FAVORITE}=$isFavorite"
+
+private fun premiumRoute(planType: String = ""): String =
+    "premium?${PremiumViewModel.ARG_PLAN_TYPE}=${Uri.encode(planType)}"
+
+private fun paymentRoute(planType: String): String =
+    "payment/${Uri.encode(planType)}"
 
 /**
  * Alt çubuk sekmesine standart desenle geçiş yapar: back stack'te sekme kopyası birikmez

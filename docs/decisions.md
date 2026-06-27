@@ -175,4 +175,29 @@
   - `ui/library/` — `LibraryScreen.kt`, `LibraryViewModel.kt` ve `LibraryContract.kt` üzerindeki eski dialog yapısı silinip yeni ekrana yönlendirme yapıldı.
   - `ui/navigation/` — `LyraDestination.kt` ve `LyraNavHost.kt` navigasyon tanımlamaları güncellendi.
 
-- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).
+- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).
+
+---
+
+### Premium Membership ve Server-Authoritative Playback
+
+- Karar: Premium plan, odeme, profil membership ve free/premium playback kararlari
+  `https://streaming-api.halitkalayci.com/docs/#/` OpenAPI sozlesmesine gore
+  implemente edilir. `tickets-api` servisi LyraApp icin kullanilmaz.
+
+- Son Guncelleme Tarihi: 27.06.2026
+
+- Uygulama:
+  - Premium planlar `GET /api/v1/memberships/plans` ile alinir.
+  - Satin alma `POST /api/v1/memberships/checkout` ile yapilir.
+  - Profilde free/premium durumu `GET /api/v1/me` response icindeki `membership`
+    alanindan okunur; mock premium status kullanilmaz.
+  - Sarkiyi calmadan once free/premium karari client tarafinda verilmez;
+    `POST /api/v1/me/playback/next` backend karari uygulanir.
+  - `playback/next` play kaydini tuttugu icin bu akista ayrica
+    `POST /api/v1/me/plays` cagrilmaz.
+  - Backend reklam dondururse reklam bittiginde `POST /api/v1/me/playback/ad-complete`
+    endpointine `impressionId` gonderilir.
+
+- Sebep: Free kullanicilarda reklam araligi ve premium bypass kurallari backend tarafinda
+  tek kaynak olarak tutulur. Client yalnizca API sonucunu uygular.
