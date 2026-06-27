@@ -34,13 +34,25 @@ class DefaultProfileRepository @Inject constructor(
     private fun UserDto.toUserProfile(): UserProfile {
         return UserProfile(
             id = id,
-            name = "${firstName ?: ""} ${lastName ?: ""}".trim().ifEmpty { "İsimsiz Kullanıcı" },
+            firstName = firstName ?: "",
+            lastName = lastName ?: "",
+            phone = phone,
             username = "@${firstName?.lowercase() ?: "user"}",
-            status = "Premium", // Mocked
+            status = if (membership?.status == "active") "Premium" else "Free",
             playlistCount = 127, // Mocked
             followerCount = "1.2B", // Mocked
             followingCount = 348, // Mocked
-            avatarUrl = null
+            avatarUrl = null,
+            membership = membership?.let {
+                Membership(
+                    planId = it.planId,
+                    type = it.type,
+                    status = it.status,
+                    autoRenew = it.autoRenew,
+                    startedAt = it.startedAt,
+                    expiresAt = it.expiresAt
+                )
+            }
         )
     }
 }

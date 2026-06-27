@@ -23,12 +23,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.input.KeyboardType
 import com.turkcell.lyraapp.data.profile.UserProfile
 import kotlinx.coroutines.flow.collectLatest
+import java.time.Instant
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun ProfileRoute(
     viewModel: ProfileViewModel = hiltViewModel(),
     onShowSnackbar: (String) -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    onNavigateToPremium: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -37,6 +40,7 @@ fun ProfileRoute(
             when (effect) {
                 is ProfileEffect.ShowError -> onShowSnackbar(effect.message)
                 is ProfileEffect.NavigateToLogin -> onNavigateToLogin()
+                is ProfileEffect.NavigateToPremium -> onNavigateToPremium()
             }
         }
     }
@@ -147,6 +151,11 @@ private fun ProfileContent(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
         
+        // Dynamic Initials
+        val initialF = user.firstName.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "Z"
+        val initialL = user.lastName.takeIf { it.isNotBlank() }?.take(1)?.uppercase() ?: "K"
+        val initials = "$initialF$initialL"
+        
         // Avatar
         Box(
             modifier = Modifier
@@ -154,7 +163,7 @@ private fun ProfileContent(
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        colors = listOf(Color(0xFF9A5A6D), Color(0xFFD4A373))
+                        colors = listOf(Color(0xFFE91E63), Color(0xFFFF9800))
                     )
                 )
                 .align(Alignment.CenterHorizontally)
@@ -162,7 +171,7 @@ private fun ProfileContent(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "ZK",
+                text = initials,
                 color = Color.White,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold
@@ -186,6 +195,46 @@ private fun ProfileContent(
             fontSize = 14.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        // Premium Banner
+        val isPremium = user.membership?.status == "active"
+        val expiresAt = user.membership?.expiresAt
+        
+        val daysLeft = try {
+            if (expiresAt != null) {
+                val expiry = Instant.parse(expiresAt)
+                val now = Instant.now()
+                ChronoUnit.DAYS.between(now, expiry)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+
+        val bannerText = when {
+            isPremium && daysLeft != null && daysLeft <= 3 -> "Premium - $daysLeft gün kaldı"
+            isPremium -> "Premium"
+            else -> "Premium'a Geç"
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.horizontalGradient(listOf(Color(0xFFE91E63), Color(0xFF9C27B0))))
+                .clickable { onIntent(ProfileIntent.PremiumClicked) }
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = bannerText,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 16.sp
+            )
+        }
         
         Spacer(modifier = Modifier.height(24.dp))
         

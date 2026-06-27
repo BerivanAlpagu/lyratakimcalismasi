@@ -175,4 +175,13 @@
   - `ui/library/` — `LibraryScreen.kt`, `LibraryViewModel.kt` ve `LibraryContract.kt` üzerindeki eski dialog yapısı silinip yeni ekrana yönlendirme yapıldı.
   - `ui/navigation/` — `LyraDestination.kt` ve `LyraNavHost.kt` navigasyon tanımlamaları güncellendi.
 
-- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).
+- Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).
+### Premium ve Playback Yönetimi
+
+- Karar: **Server-authoritative playback ve Premium üyelik yapısı**
+- Son Güncelleme Tarihi: 27.06.2026
+- Uygulama: 
+  - Profil sayfasında abonelik bilgisi (`GET /api/v1/me`) kullanılarak "Premium" veya "Premium'a Geç" tasarımı dinamikleşecek. Avatar bölümünde isim/soyad baş harfleri (Örn: ZK) kullanılacak.
+  - Oynatma esnasında doğrudan stream URL alınmayacak; `POST /api/v1/me/playback/next` kullanılarak Free kullanıcılar için reklam (ad), Premium kullanıcılar için doğrudan şarkı (song) çalınacak. Reklam bitişleri `ad-complete` ile bildirilecek.
+  - Ödeme akışı mock kredi kartı (4242...) ile `POST /api/v1/memberships/checkout` üzerinden gerçekleştirilecek.
+- Sebep: OpenAPI spesifikasyonlarına ve referans ekran tasarımlarına birebir uyum (bkz. agents.md §2.4).

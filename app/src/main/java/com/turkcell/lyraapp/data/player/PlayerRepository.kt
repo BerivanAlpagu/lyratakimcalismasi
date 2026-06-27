@@ -8,6 +8,12 @@ package com.turkcell.lyraapp.data.player
  */
 interface PlayerRepository {
 
-    /** [songId] için ExoPlayer'a verilebilecek imzalı stream URL'sini döndürür. */
+    /** [songId] için ExoPlayer'a verilebilecek imzalı stream URL'sini döndürür. (Premium Only) */
     suspend fun getStreamUrl(songId: String): Result<String>
+
+    /** Free/Premium fark etmeksizin sıradaki oynatılacak içeriği (Şarkı veya Reklam+Şarkı) döndürür. */
+    suspend fun getPlaybackNext(songId: String): Result<com.turkcell.lyraapp.data.me.PlaybackItemDto>
+
+    /** Reklam gösterimi tamamlandığında çağrılır. */
+    suspend fun completeAd(impressionId: String): Result<Boolean>
 }

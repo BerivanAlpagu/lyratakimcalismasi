@@ -163,6 +163,32 @@ fun LyraNavHost(
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
                         }
+                    },
+                    onNavigateToPremium = {
+                        navController.navigate(LyraDestination.Premium.route)
+                    }
+                )
+            }
+
+            composable(LyraDestination.Premium.route) {
+                com.turkcell.lyraapp.ui.premium.PremiumScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPayment = { planId ->
+                        navController.navigate("${LyraDestination.Payment.route}/$planId")
+                    }
+                )
+            }
+
+            composable(
+                route = "${LyraDestination.Payment.route}/{planId}",
+                arguments = listOf(navArgument("planId") { type = NavType.StringType })
+            ) {
+                com.turkcell.lyraapp.ui.payment.PaymentRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPaymentSuccess = {
+                        navController.navigate(LyraDestination.Profile.route) {
+                            popUpTo(LyraDestination.Profile.route) { inclusive = true }
+                        }
                     }
                 )
             }

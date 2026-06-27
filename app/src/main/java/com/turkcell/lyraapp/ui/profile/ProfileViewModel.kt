@@ -48,6 +48,11 @@ class ProfileViewModel @Inject constructor(
             is ProfileIntent.EditProfileClicked -> _uiState.update { it.copy(showEditSheet = true) }
             is ProfileIntent.DismissEditSheet -> _uiState.update { it.copy(showEditSheet = false) }
             is ProfileIntent.SaveProfile -> saveProfile(intent.firstName, intent.lastName, intent.birthDate)
+            is ProfileIntent.PremiumClicked -> {
+                viewModelScope.launch {
+                    _effect.emit(ProfileEffect.NavigateToPremium)
+                }
+            }
         }
     }
 

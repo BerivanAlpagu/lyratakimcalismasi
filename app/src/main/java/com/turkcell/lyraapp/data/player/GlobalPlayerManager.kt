@@ -7,7 +7,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.turkcell.lyraapp.data.me.MeApi
-import com.turkcell.lyraapp.data.me.RecordPlayDto
+import com.turkcell.lyraapp.data.me.PlaybackItemDto
 import com.turkcell.lyraapp.data.songs.SongDto
 import com.turkcell.lyraapp.ui.player.PlayerUiState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -35,6 +35,7 @@ class GlobalPlayerManager @Inject constructor(
     private var pollJob: Job? = null
     private var playlistQueue: List<SongDto> = emptyList()
     private var currentSongIndex: Int = -1
+    private var currentAdImpressionId: String? = null
 
     // PlayerUiState includes title, artist, isPlaying, duration, etc.
     // To also carry the songId and artwork colors for the Home screen NowPlayingBar,
@@ -63,6 +64,19 @@ class GlobalPlayerManager @Inject constructor(
             }
             if (playbackState == Player.STATE_ENDED) {
                 playNext()
+            }
+        }
+        
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            super.onMediaItemTransition(mediaItem, reason)
+            val currentId = mediaItem?.mediaId
+            if (currentId == _playerState.value.songId) {
+                currentAdImpressionId?.let { impressionId ->
+                    scope.launch {
+                        playerRepository.completeAd(impressionId)
+                    }
+                    currentAdImpressionId = null
+                }
             }
         }
 
@@ -122,19 +136,34 @@ class GlobalPlayerManager @Inject constructor(
         }
 
         scope.launch {
-            playerRepository.getStreamUrl(songId)
-                .onSuccess { url ->
-                    player.setMediaItem(MediaItem.fromUri(Uri.parse(url)))
-                    player.prepare()
-                    player.playWhenReady = true
-                    startPolling()
-
-                    // Record play
-                    try {
-                        meApi.recordPlay(RecordPlayDto(songId))
-                    } catch (e: Exception) {
-                        // Ignore recording failure
+            playerRepository.getPlaybackNext(songId)
+                .onSuccess { item ->
+                    when (item) {
+                        is PlaybackItemDto.SongPlayback -> {
+                            val songItem = MediaItem.Builder()
+                                .setUri(Uri.parse(item.streamUrl))
+                                .setMediaId(songId)
+                                .build()
+                            player.setMediaItem(songItem)
+                            player.prepare()
+                            player.playWhenReady = true
+                        }
+                        is PlaybackItemDto.AdPlayback -> {
+                            currentAdImpressionId = item.impressionId
+                            val adItem = MediaItem.Builder()
+                                .setUri(Uri.parse(item.ad.streamUrl))
+                                .setMediaId("ad_${item.impressionId}")
+                                .build()
+                            val songItem = MediaItem.Builder()
+                                .setUri(Uri.parse(item.songStreamUrl))
+                                .setMediaId(songId)
+                                .build()
+                            player.setMediaItems(listOf(adItem, songItem))
+                            player.prepare()
+                            player.playWhenReady = true
+                        }
                     }
+                    startPolling()
                 }
                 .onFailure { error ->
                     _playerState.update {

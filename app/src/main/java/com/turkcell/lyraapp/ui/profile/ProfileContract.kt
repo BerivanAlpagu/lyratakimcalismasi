@@ -17,9 +17,11 @@ sealed interface ProfileIntent {
     data object EditProfileClicked : ProfileIntent
     data object DismissEditSheet : ProfileIntent
     data class SaveProfile(val firstName: String, val lastName: String, val birthDate: String) : ProfileIntent
+    object PremiumClicked : ProfileIntent
 }
 
 sealed interface ProfileEffect {
     data class ShowError(val message: String) : ProfileEffect
     data object NavigateToLogin : ProfileEffect
+    object NavigateToPremium : ProfileEffect
 }

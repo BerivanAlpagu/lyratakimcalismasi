@@ -661,7 +661,7 @@
                         "bearerAuth": []
                     }
                 ],
-                "description": "More songs by artists the user has played, excluding songs already played. Falls back to the newest unplayed catalog.",
+                "description": "More songs by artists the user has played (already-played songs are included). Falls back to the newest catalog when there is no history.",
                 "parameters": [
                     {
                         "name": "limit",
@@ -813,6 +813,84 @@
                     },
                     "401": {
                         "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/me/playlists/{id}": {
+            "delete": {
+                "tags": [
+                    "me"
+                ],
+                "summary": "Delete one of the user's own playlists",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "description": "Deletes the playlist and all of its tracks. The caller must own it.",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Playlist id (must be owned by the caller)."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Playlist deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "deleted": {
+                                                    "type": "boolean",
+                                                    "example": true
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid access token",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "You do not own this playlist",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Playlist not found",
                         "content": {
                             "application/json": {
                                 "schema": {
