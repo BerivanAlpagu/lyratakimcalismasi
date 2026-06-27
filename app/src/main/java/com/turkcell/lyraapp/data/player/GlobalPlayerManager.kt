@@ -6,8 +6,6 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.turkcell.lyraapp.data.me.MeApi
-import com.turkcell.lyraapp.data.me.PlaybackItemDto
 import com.turkcell.lyraapp.data.songs.SongDto
 import com.turkcell.lyraapp.ui.player.PlayerUiState
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -27,12 +25,17 @@ import com.turkcell.lyraapp.LyraMediaService
 import androidx.media3.common.MediaMetadata
 import javax.inject.Inject
 import javax.inject.Singleton
+import coil.imageLoader
+import coil.request.ImageRequest
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
+import androidx.media3.common.C
 
 @Singleton
 class GlobalPlayerManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playerRepository: PlayerRepository,
-    private val meApi: MeApi
 ) {
     /** LyraMediaService tarafından MediaSession'a bağlanmak için erişilebilir. */
     val player: ExoPlayer = ExoPlayer.Builder(context).build()
@@ -40,6 +43,7 @@ class GlobalPlayerManager @Inject constructor(
     private var pollJob: Job? = null
     private var playlistQueue: List<SongDto> = emptyList()
     private var currentSongIndex: Int = -1
+    private var songAfterAd: PlaybackDecision.Song? = null
     private var currentAdImpressionId: String? = null
 
     // PlayerUiState includes title, artist, isPlaying, duration, etc.
@@ -68,7 +72,18 @@ class GlobalPlayerManager @Inject constructor(
                 _playerState.update { it.copy(isLoading = false) }
             }
             if (playbackState == Player.STATE_ENDED) {
-                playNext()
+                val pendingSong = songAfterAd
+                val impressionId = currentAdImpressionId
+                if (pendingSong != null && impressionId != null) {
+                    songAfterAd = null
+                    currentAdImpressionId = null
+                    scope.launch {
+                        playerRepository.completeAd(impressionId)
+                        playResolvedSong(pendingSong)
+                    }
+                } else {
+                    playNext()
+                }
             }
         }
         
@@ -171,47 +186,11 @@ class GlobalPlayerManager @Inject constructor(
         }
 
         scope.launch {
-            playerRepository.getPlaybackNext(songId)
-                .onSuccess { item ->
-                    val dummyCoverUrl = "https://picsum.photos/seed/$songId/300/300"
-                    val songMetadata = MediaMetadata.Builder()
-                        .setTitle(title)
-                        .setArtist(artist)
-                        .setDisplayTitle(title)
-                        .setArtworkUri(Uri.parse(dummyCoverUrl))
-                        .build()
-
-                    when (item) {
-                        is PlaybackItemDto.SongPlayback -> {
-                            val songItem = MediaItem.Builder()
-                                .setUri(Uri.parse(item.streamUrl))
-                                .setMediaId(songId)
-                                .setMediaMetadata(songMetadata)
-                                .build()
-                            player.setMediaItem(songItem)
-                            player.prepare()
-                            player.playWhenReady = true
-                        }
-                        is PlaybackItemDto.AdPlayback -> {
-                            currentAdImpressionId = item.impressionId
-                            val adMetadata = MediaMetadata.Builder()
-                                .setTitle(item.ad.title)
-                                .setDisplayTitle(item.ad.title)
-                                .build()
-                            val adItem = MediaItem.Builder()
-                                .setUri(Uri.parse(item.ad.streamUrl))
-                                .setMediaId("ad_${item.impressionId}")
-                                .setMediaMetadata(adMetadata)
-                                .build()
-                            val songItem = MediaItem.Builder()
-                                .setUri(Uri.parse(item.songStreamUrl))
-                                .setMediaId(songId)
-                                .setMediaMetadata(songMetadata)
-                                .build()
-                            player.setMediaItems(listOf(adItem, songItem))
-                            player.prepare()
-                            player.playWhenReady = true
-                        }
+            playerRepository.resolveNextPlayback(songId)
+                .onSuccess { decision ->
+                    when (decision) {
+                        is PlaybackDecision.Song -> playResolvedSong(decision)
+                        is PlaybackDecision.AdThenSong -> playAdThenSong(decision)
                     }
                     startPolling()
                 }
@@ -226,24 +205,91 @@ class GlobalPlayerManager @Inject constructor(
         }
     }
 
+    private fun playAdThenSong(decision: PlaybackDecision.AdThenSong) {
+        songAfterAd = PlaybackDecision.Song(
+            songId = decision.songId,
+            title = decision.title,
+            artist = decision.artist,
+            streamUrl = decision.streamUrl,
+        )
+        currentAdImpressionId = decision.impressionId
+        _playerState.update {
+            it.copy(
+                songId = decision.adId,
+                title = decision.adTitle,
+                artist = decision.advertiser,
+                isLoading = true,
+                errorMessage = null,
+                positionMs = 0L,
+                durationMs = 0L,
+                bufferedMs = 0L,
+                hasEnded = false,
+            )
+        }
+        playMedia(
+            mediaId = decision.adId,
+            title = decision.adTitle,
+            artist = decision.advertiser,
+            url = decision.adStreamUrl,
+        )
+    }
+
+    private fun playResolvedSong(decision: PlaybackDecision.Song) {
+        _playerState.update {
+            it.copy(
+                songId = decision.songId,
+                title = decision.title,
+                artist = decision.artist,
+                isLoading = true,
+                errorMessage = null,
+                positionMs = 0L,
+                durationMs = 0L,
+                bufferedMs = 0L,
+                hasEnded = false,
+            )
+        }
+        playMedia(
+            mediaId = decision.songId,
+            title = decision.title,
+            artist = decision.artist,
+            url = decision.streamUrl,
+        )
+    }
+
+    private fun playMedia(
+        mediaId: String,
+        title: String,
+        artist: String,
+        url: String,
+    ) {
+        val mediaMetadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setDisplayTitle(title)
+            .build()
+
+        val mediaItem = MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setUri(Uri.parse(url))
+            .setMediaMetadata(mediaMetadata)
+            .build()
+
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.playWhenReady = true
+        startPolling()
+    }
+
     fun togglePlayPause() {
         if (player.isPlaying) player.pause() else player.play()
     }
 
     fun skipToNext() {
-        if (player.hasNextMediaItem()) {
-            player.seekToNextMediaItem()
-        }
+        playNext()
     }
 
     fun skipToPrevious() {
-        if (player.currentPosition > 3000L) {
-            player.seekTo(0L)
-        } else if (player.hasPreviousMediaItem()) {
-            player.seekToPreviousMediaItem()
-        } else {
-            player.seekTo(0L)
-        }
+        playPrevious()
     }
 
     fun toggleFavorite() {

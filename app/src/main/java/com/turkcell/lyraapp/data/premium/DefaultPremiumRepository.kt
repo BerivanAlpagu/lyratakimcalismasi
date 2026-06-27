@@ -5,33 +5,51 @@ import javax.inject.Singleton
 
 @Singleton
 class DefaultPremiumRepository @Inject constructor(
-    private val premiumApi: PremiumApi
+    private val premiumApi: PremiumApi,
 ) : PremiumRepository {
 
-    override suspend fun getPremiumPlans(): Result<List<PremiumPlan>> = runCatching {
-        val response = premiumApi.getPlans()
-        response.data.map { planDto ->
-            PremiumPlan(
-                id = planDto.id,
-                type = planDto.type,
-                name = planDto.name,
-                description = planDto.description,
-                price = planDto.price,
-                currency = planDto.currency
-            )
-        }
+    override suspend fun getPlans(): Result<List<PremiumPlan>> = runCatching {
+        premiumApi.getPlans().data.map { it.toPremiumPlan() }
     }
 
-    override suspend fun checkout(planId: String, card: CardDetailsDto): Result<PremiumCheckoutResult> = runCatching {
+    override suspend fun checkout(
+        planType: PremiumPlanType,
+        card: PremiumCard,
+    ): Result<PremiumCheckoutResult> = runCatching {
         val response = premiumApi.checkout(
-            CheckoutRequestDto(
-                plan = planId,
-                card = card
-            )
+            CheckoutRequest(
+                plan = planType.apiValue,
+                card = CheckoutCardDto(
+                    number = card.number,
+                    expMonth = card.expMonth,
+                    expYear = card.expYear,
+                    cvc = card.cvc,
+                    holderName = card.holderName,
+                ),
+            ),
         )
         PremiumCheckoutResult(
-            success = true,
-            message = "Premium membership activated successfully"
+            transactionId = response.data.payment.transactionId,
+            amountKurus = response.data.payment.amountKurus,
+            currency = response.data.payment.currency,
+            membershipExpiresAt = response.data.membership.expiresAt,
         )
     }
+
+    private fun MembershipPlanDto.toPremiumPlan(): PremiumPlan =
+        PremiumPlan(
+            id = id,
+            type = when (type) {
+                PremiumPlanType.OneTime.apiValue -> PremiumPlanType.OneTime
+                PremiumPlanType.Recurring.apiValue -> PremiumPlanType.Recurring
+                else -> PremiumPlanType.OneTime
+            },
+            name = name,
+            description = description,
+            priceKurus = priceKurus,
+            price = price,
+            currency = currency,
+            durationDays = durationDays,
+            autoRenew = autoRenew,
+        )
 }

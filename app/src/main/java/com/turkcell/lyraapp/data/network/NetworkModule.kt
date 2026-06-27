@@ -2,6 +2,7 @@ package com.turkcell.lyraapp.data.network
 
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import com.turkcell.lyraapp.data.playlists.PlaylistsApi
+import com.turkcell.lyraapp.data.premium.PremiumApi
 import com.turkcell.lyraapp.data.songs.SongsApi
 import dagger.Module
 import dagger.Provides
@@ -82,4 +83,8 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideMeApi(retrofit: Retrofit): MeApi = retrofit.create(MeApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePremiumApi(retrofit: Retrofit): PremiumApi = retrofit.create(PremiumApi::class.java)
 }

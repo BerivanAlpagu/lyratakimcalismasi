@@ -29,6 +29,12 @@ interface MeApi {
     @POST("api/v1/me/plays")
     suspend fun recordPlay(@Body request: RecordPlayDto)
 
+    @POST("api/v1/me/playback/next")
+    suspend fun resolveNextPlayback(@Body request: PlaybackNextRequest): PlaybackNextResponse
+
+    @POST("api/v1/me/playback/ad-complete")
+    suspend fun completeAd(@Body request: AdCompleteRequest): AdCompleteResponse
+
     @GET("api/v1/me/playlists")
     suspend fun getMyPlaylists(): PlaylistsResponseDto
 
@@ -62,6 +68,57 @@ interface MeApi {
 @Serializable
 data class RecordPlayDto(
     val songId: String
+)
+
+@Serializable
+data class PlaybackNextRequest(
+    val songId: String
+)
+
+@Serializable
+data class PlaybackNextResponse(
+    val data: PlaybackNextDto
+)
+
+@Serializable
+data class PlaybackNextDto(
+    val type: String,
+    val song: SongDto,
+    val stream: StreamLinkDto,
+    val ad: AdDto? = null,
+    val adStream: StreamLinkDto? = null,
+    val impressionId: String? = null,
+)
+
+@Serializable
+data class StreamLinkDto(
+    val url: String,
+    val expiresAt: String? = null,
+    val mimeType: String? = null,
+)
+
+@Serializable
+data class AdDto(
+    val id: String,
+    val title: String,
+    val advertiser: String,
+    val durationMs: Long,
+    val mimeType: String? = null,
+)
+
+@Serializable
+data class AdCompleteRequest(
+    val impressionId: String
+)
+
+@Serializable
+data class AdCompleteResponse(
+    val data: AdCompleteData
+)
+
+@Serializable
+data class AdCompleteData(
+    val completed: Boolean
 )
 
 @Serializable

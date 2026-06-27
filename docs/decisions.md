@@ -176,12 +176,28 @@
   - `ui/navigation/` — `LyraDestination.kt` ve `LyraNavHost.kt` navigasyon tanımlamaları güncellendi.
 
 - Sebep: Premium kullanıcı deneyimini artırmak ve zengin tasarıma uygun çalma listesi oluştururken şarkı seçme olanağı sunmak (bkz. agents.md §2.4).
-### Premium ve Playback Yönetimi
 
-- Karar: **Server-authoritative playback ve Premium üyelik yapısı**
-- Son Güncelleme Tarihi: 27.06.2026
-- Uygulama: 
-  - Profil sayfasında abonelik bilgisi (`GET /api/v1/me`) kullanılarak "Premium" veya "Premium'a Geç" tasarımı dinamikleşecek. Avatar bölümünde isim/soyad baş harfleri (Örn: ZK) kullanılacak.
-  - Oynatma esnasında doğrudan stream URL alınmayacak; `POST /api/v1/me/playback/next` kullanılarak Free kullanıcılar için reklam (ad), Premium kullanıcılar için doğrudan şarkı (song) çalınacak. Reklam bitişleri `ad-complete` ile bildirilecek.
-  - Ödeme akışı mock kredi kartı (4242...) ile `POST /api/v1/memberships/checkout` üzerinden gerçekleştirilecek.
-- Sebep: OpenAPI spesifikasyonlarına ve referans ekran tasarımlarına birebir uyum (bkz. agents.md §2.4).
+---
+
+### Premium Membership ve Server-Authoritative Playback
+
+- Karar: Premium plan, odeme, profil membership ve free/premium playback kararlari
+  `https://streaming-api.halitkalayci.com/docs/#/` OpenAPI sozlesmesine gore
+  implemente edilir. `tickets-api` servisi LyraApp icin kullanilmaz.
+
+- Son Guncelleme Tarihi: 27.06.2026
+
+- Uygulama:
+  - Premium planlar `GET /api/v1/memberships/plans` ile alinir.
+  - Satin alma `POST /api/v1/memberships/checkout` ile yapilir.
+  - Profilde free/premium durumu `GET /api/v1/me` response icindeki `membership`
+    alanindan okunur; mock premium status kullanilmaz.
+  - Sarkiyi calmadan once free/premium karari client tarafinda verilmez;
+    `POST /api/v1/me/playback/next` backend karari uygulanir.
+  - `playback/next` play kaydini tuttugu icin bu akista ayrica
+    `POST /api/v1/me/plays` cagrilmaz.
+  - Backend reklam dondururse reklam bittiginde `POST /api/v1/me/playback/ad-complete`
+    endpointine `impressionId` gonderilir.
+
+- Sebep: Free kullanicilarda reklam araligi ve premium bypass kurallari backend tarafinda
+  tek kaynak olarak tutulur. Client yalnizca API sonucunu uygular.

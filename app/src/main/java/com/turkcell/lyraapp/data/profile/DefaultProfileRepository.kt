@@ -1,5 +1,6 @@
 package com.turkcell.lyraapp.data.profile
 
+import com.turkcell.lyraapp.data.auth.MembershipDto
 import com.turkcell.lyraapp.data.auth.UserDto
 import com.turkcell.lyraapp.data.me.MeApi
 import com.turkcell.lyraapp.data.me.UpdateInformationsDto
@@ -38,21 +39,37 @@ class DefaultProfileRepository @Inject constructor(
             lastName = lastName ?: "",
             phone = phone,
             username = "@${firstName?.lowercase() ?: "user"}",
-            status = if (membership?.status == "active") "Premium" else "Free",
+            status = membership?.toStatusLabel() ?: "Free",
             playlistCount = 127, // Mocked
             followerCount = "1.2B", // Mocked
             followingCount = 348, // Mocked
             avatarUrl = null,
-            membership = membership?.let {
-                Membership(
-                    planId = it.planId,
-                    type = it.type,
-                    status = it.status,
-                    autoRenew = it.autoRenew,
-                    startedAt = it.startedAt,
-                    expiresAt = it.expiresAt
-                )
-            }
+            membership = membership?.toUserMembership()
         )
     }
+
+    private fun MembershipDto.toStatusLabel(): String =
+        when (status.lowercase()) {
+            "active" -> "Premium"
+            "expired" -> "Free"
+            else -> "Free"
+        }
+
+    private fun MembershipDto.toUserMembership(): UserMembership =
+        UserMembership(
+            planId = planId,
+            type = when (type.lowercase()) {
+                "one-time" -> MembershipType.OneTime
+                "recurring" -> MembershipType.Recurring
+                else -> MembershipType.Unknown
+            },
+            status = when (status.lowercase()) {
+                "active" -> MembershipStatus.Active
+                "expired" -> MembershipStatus.Expired
+                else -> MembershipStatus.Unknown
+            },
+            autoRenew = autoRenew,
+            startedAt = startedAt,
+            expiresAt = expiresAt,
+        )
 }

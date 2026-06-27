@@ -3,103 +3,186 @@ package com.turkcell.lyraapp.ui.premium
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.turkcell.lyraapp.data.premium.PremiumPlan
+import com.turkcell.lyraapp.data.premium.PremiumPlanType
 import com.turkcell.lyraapp.ui.icons.LyraIcons
 
 @Composable
-fun PremiumScreen(
-    viewModel: PremiumViewModel = hiltViewModel(),
+fun PremiumRoute(
     onNavigateBack: () -> Unit,
-    onNavigateToPayment: (String) -> Unit
+    onNavigateToPayment: (PremiumPlanType) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: PremiumViewModel = hiltViewModel(),
 ) {
-    val state by viewModel.state.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is PremiumEffect.NavigateBack -> onNavigateBack()
-                is PremiumEffect.NavigateToPayment -> onNavigateToPayment(effect.planId)
-                is PremiumEffect.ShowError -> {
-                    // TODO: Show snackbar
-                }
+                PremiumEffect.NavigateBack -> onNavigateBack()
+                is PremiumEffect.NavigateToPayment -> onNavigateToPayment(effect.planType)
+                is PremiumEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
             }
         }
     }
 
-    PremiumContent(
-        state = state,
-        onIntent = viewModel::onIntent
+    PremiumScreen(
+        state = uiState,
+        onIntent = viewModel::onIntent,
+        snackbarHostState = snackbarHostState,
+        modifier = modifier,
     )
 }
 
 @Composable
-private fun PremiumContent(
-    state: PremiumState,
-    onIntent: (PremiumIntent) -> Unit
+fun PremiumScreen(
+    state: PremiumUiState,
+    onIntent: (PremiumIntent) -> Unit,
+    modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
-    Column(
-        modifier = Modifier
+    Box(
+        modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(PremiumBackground),
     ) {
-        // Top Bar
-        Row(
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 28.dp),
         ) {
-            IconButton(onClick = { onIntent(PremiumIntent.BackClicked) }) {
+            IconButton(
+                onClick = { onIntent(PremiumIntent.BackClicked) },
+                modifier = Modifier.padding(top = 8.dp),
+            ) {
                 Icon(
                     imageVector = LyraIcons.ArrowBack,
                     contentDescription = "Geri",
-                    tint = MaterialTheme.colorScheme.onBackground
+                    tint = Color.White,
                 )
             }
-            Text(
-                text = "Premium",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                modifier = Modifier.padding(start = 8.dp)
-            )
-        }
 
-        if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 32.dp)
-            ) {
-                items(state.plans) { plan ->
-                    PremiumPlanCard(
-                        plan = plan,
-                        onClick = { onIntent(PremiumIntent.PlanSelected(plan.type)) }
+            PremiumHero()
+            Spacer(Modifier.height(24.dp))
+            PremiumBenefits()
+            Spacer(Modifier.height(24.dp))
+
+            Text(
+                text = "Planini sec",
+                style = MaterialTheme.typography.titleSmall,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.height(12.dp))
+
+            if (state.isLoading && state.plans.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = PremiumPink)
+                }
+            } else if (state.errorMessage != null && state.plans.isEmpty()) {
+                PremiumError(
+                    message = state.errorMessage,
+                    onRetry = { onIntent(PremiumIntent.RetryClicked) },
+                )
+            } else {
+                state.plans
+                    .sortedBy { if (it.type == PremiumPlanType.Recurring) 0 else 1 }
+                    .forEach { plan ->
+                        PlanOption(
+                            plan = plan,
+                            selected = plan.type == state.selectedPlanType,
+                            onClick = { onIntent(PremiumIntent.PlanSelected(plan.type)) },
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                Button(
+                    onClick = { onIntent(PremiumIntent.ContinueClicked) },
+                    enabled = !state.isLoading && state.plans.isNotEmpty(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PremiumPink,
+                        contentColor = PremiumTextDark,
+                        disabledContainerColor = PremiumMuted,
+                        disabledContentColor = PremiumSoftText,
+                    ),
+                    shape = RoundedCornerShape(28.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp),
+                ) {
+                    Text(
+                        text = "Devam et",
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(Modifier.size(10.dp))
+                    Icon(
+                        imageVector = LyraIcons.ArrowForward,
+                        contentDescription = null,
+                    )
+                }
+
+                val selected = state.plans.firstOrNull { it.type == state.selectedPlanType }
+                if (selected != null) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = selected.footerText(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
@@ -108,63 +191,212 @@ private fun PremiumContent(
 }
 
 @Composable
-private fun PremiumPlanCard(
-    plan: PremiumPlan,
-    onClick: () -> Unit
-) {
-    val isRecurring = plan.type == "recurring"
-    val cardBackground = if (isRecurring) {
-        Brush.linearGradient(
-            colors = listOf(Color(0xFFE91E63), Color(0xFF9C27B0))
+private fun PremiumHero() {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(70.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(Brush.linearGradient(listOf(PremiumPink, PremiumPeach))),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = LyraIcons.Check,
+                contentDescription = null,
+                tint = PremiumTextDark,
+                modifier = Modifier.size(30.dp),
+            )
+        }
+        Spacer(Modifier.height(18.dp))
+        Text(
+            text = "LyraApp Premium",
+            style = MaterialTheme.typography.headlineSmall,
+            color = Color.White,
+            fontWeight = FontWeight.Medium,
         )
-    } else {
-        Brush.linearGradient(
-            colors = listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Reklamsiz, sinirsiz ve cevrimdisi muzigin keyfini cikar.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp),
         )
     }
+}
 
-    val textColor = if (isRecurring) Color.White else MaterialTheme.colorScheme.onBackground
+@Composable
+private fun PremiumBenefits() {
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        BenefitItem(LyraIcons.Close, "Reklamsiz dinleme", "Kesintisiz, sinirsiz muzik")
+        BenefitItem(LyraIcons.SkipNext, "Sinirsiz atlama", "Istedigin sarkiya gec")
+        BenefitItem(LyraIcons.Download, "Cevrimdisi indirme", "Internet olmadan dinle")
+        BenefitItem(LyraIcons.Waveform, "Yuksek ses kalitesi", "320 kbps net ses")
+        BenefitItem(LyraIcons.Cast, "Tum cihazlarinda", "Telefon, tablet ve masaustu")
+    }
+}
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(cardBackground)
-            .clickable(onClick = onClick)
-            .then(
-                if (!isRecurring) Modifier.border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
-                else Modifier
+@Composable
+private fun BenefitItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(PremiumSurface),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = PremiumPink,
+                modifier = Modifier.size(20.dp),
             )
-            .padding(24.dp)
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = plan.name,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = textColor
-                    )
-                )
-                Text(
-                    text = "${plan.price} ${plan.currency}",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = textColor
-                    )
-                )
-            }
-            Spacer(modifier = Modifier.height(8.dp))
+        }
+        Column(modifier = Modifier.padding(start = 14.dp)) {
             Text(
-                text = plan.description,
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = textColor.copy(alpha = 0.8f)
-                )
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
             )
         }
     }
 }
+
+@Composable
+private fun PlanOption(
+    plan: PremiumPlan,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val borderColor = if (selected) PremiumPink else PremiumOutline
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.5.dp, borderColor, RoundedCornerShape(18.dp))
+            .background(if (selected) PremiumSelectedSurface else PremiumCardSurface)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = PremiumPink,
+                unselectedColor = PremiumOutline,
+            ),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = plan.displayName(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Medium,
+                )
+                if (plan.type == PremiumPlanType.Recurring) {
+                    Spacer(Modifier.size(10.dp))
+                    Text(
+                        text = "Populer",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = PremiumTextDark,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PremiumPink)
+                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                    )
+                }
+            }
+            Text(
+                text = plan.descriptionText(),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White,
+            )
+        }
+        Text(
+            text = plan.priceText(),
+            style = MaterialTheme.typography.titleMedium,
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+@Composable
+private fun PremiumError(
+    message: String,
+    onRetry: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(18.dp))
+            .background(PremiumCardSurface)
+            .padding(20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            text = message,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(12.dp))
+        Button(
+            onClick = onRetry,
+            colors = ButtonDefaults.buttonColors(containerColor = PremiumPink),
+        ) {
+            Text("Tekrar dene", color = PremiumTextDark)
+        }
+    }
+}
+
+private fun PremiumPlan.displayName(): String =
+    when (type) {
+        PremiumPlanType.Recurring -> "Aylik\nabonelik"
+        PremiumPlanType.OneTime -> "Tek seferlik"
+    }
+
+private fun PremiumPlan.descriptionText(): String =
+    when (type) {
+        PremiumPlanType.Recurring -> "Istedigin zaman iptal et"
+        PremiumPlanType.OneTime -> "$durationDays gun erisim - otomatik yenileme yok"
+    }
+
+private fun PremiumPlan.priceText(): String {
+    val amount = priceKurus / 100.0
+    val suffix = if (type == PremiumPlanType.Recurring) " / ay" else ""
+    return "₺${"%.2f".format(amount)}$suffix"
+}
+
+private fun PremiumPlan.footerText(): String =
+    when (type) {
+        PremiumPlanType.Recurring -> "${priceText()}. Diledigin zaman iptal edebilirsin."
+        PremiumPlanType.OneTime -> "$durationDays gunluk tek seferlik erisim."
+    }
+
+private val PremiumBackground = Color(0xFF160D11)
+private val PremiumSurface = Color(0xFF2A1D22)
+private val PremiumCardSurface = Color(0xFF20161A)
+private val PremiumSelectedSurface = Color(0xFF3A2029)
+private val PremiumMuted = Color(0xFF3D2D33)
+private val PremiumOutline = Color(0xFF76545F)
+private val PremiumPink = Color(0xFFFFA6C8)
+private val PremiumPeach = Color(0xFFFFC4A5)
+private val PremiumTextDark = Color(0xFF4A1230)
+private val PremiumSoftText = Color(0xFFAA8C96)

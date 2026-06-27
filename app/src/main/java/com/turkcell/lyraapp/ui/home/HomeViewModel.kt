@@ -7,6 +7,7 @@ import com.turkcell.lyraapp.data.home.HomeSong
 import com.turkcell.lyraapp.data.local.FavoritesStore
 import com.turkcell.lyraapp.data.local.SettingsStore
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
+import com.turkcell.lyraapp.data.songs.SongDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -71,13 +72,19 @@ class HomeViewModel @Inject constructor(
                 globalPlayerManager.togglePlayPause()
             }
             is HomeIntent.SongSelected -> viewModelScope.launch {
-                globalPlayerManager.playSong(
-                    songId = intent.song.id,
-                    title = intent.song.title,
-                    artist = intent.song.artist,
-                    artworkStartColor = intent.song.artworkStartColor,
-                    artworkEndColor = intent.song.artworkEndColor
-                )
+                val queue = _uiState.value.songs.map { it.toSongDto() }
+                val startIndex = queue.indexOfFirst { it.id == intent.song.id }
+                if (startIndex >= 0) {
+                    globalPlayerManager.playSongWithQueue(queue, startIndex)
+                } else {
+                    globalPlayerManager.playSong(
+                        songId = intent.song.id,
+                        title = intent.song.title,
+                        artist = intent.song.artist,
+                        artworkStartColor = intent.song.artworkStartColor,
+                        artworkEndColor = intent.song.artworkEndColor
+                    )
+                }
                 _effect.send(
                     HomeEffect.NavigateToPlayer(
                         songId = intent.song.id,
@@ -121,6 +128,13 @@ class HomeViewModel @Inject constructor(
         val seconds = totalSeconds % 60L
         return "%d:%02d".format(minutes, seconds)
     }
+
+    private fun com.turkcell.lyraapp.data.home.HomeSong.toSongDto(): SongDto =
+        SongDto(
+            id = id,
+            title = title,
+            artist = artist,
+        )
 
     private fun loadFeed() {
         if (_uiState.value.isLoading) return

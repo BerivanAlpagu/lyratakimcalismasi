@@ -11,17 +11,26 @@ data class UserProfile(
     val followerCount: String,
     val followingCount: Int,
     val avatarUrl: String? = null,
-    val membership: Membership? = null
-) {
-    val name: String
-        get() = "$firstName $lastName".trim()
+    val membership: UserMembership? = null,
+)
+
+data class UserMembership(
+    val planId: String,
+    val type: MembershipType,
+    val status: MembershipStatus,
+    val autoRenew: Boolean,
+    val startedAt: String?,
+    val expiresAt: String,
+)
+
+enum class MembershipType {
+    OneTime,
+    Recurring,
+    Unknown,
 }
 
-data class Membership(
-    val planId: String,
-    val type: String,
-    val status: String,
-    val autoRenew: Boolean,
-    val startedAt: String,
-    val expiresAt: String? = null
-)
+enum class MembershipStatus {
+    Active,
+    Expired,
+    Unknown,
+}
