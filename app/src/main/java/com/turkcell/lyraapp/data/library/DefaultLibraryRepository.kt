@@ -26,19 +26,17 @@ class DefaultLibraryRepository @Inject constructor(
     private val songsApi: SongsApi,
 ) : LibraryRepository {
 
-    private val deletedPlaylistIds = java.util.Collections.synchronizedSet(mutableSetOf<String>())
-
     /**
      * `GET /api/v1/playlists` çağrısını yapar ve sonucu [Result] ile sarar.
      */
     override suspend fun getPlaylists(): Result<List<PlaylistDto>> =
         runCatching {
-            playlistsApi.getPlaylists().data.filter { it.id !in deletedPlaylistIds }
+            playlistsApi.getPlaylists().data
         }
 
     override suspend fun getMyPlaylists(): Result<List<PlaylistDto>> =
         runCatching {
-            meApi.getMyPlaylists().data.filter { it.id !in deletedPlaylistIds }
+            meApi.getMyPlaylists().data
         }
 
     override suspend fun createPlaylist(name: String, description: String?): Result<PlaylistDto> =
@@ -69,11 +67,7 @@ class DefaultLibraryRepository @Inject constructor(
 
     override suspend fun deletePlaylist(playlistId: String): Result<Unit> =
         runCatching {
-            deletedPlaylistIds.add(playlistId)
-            try {
-                meApi.deletePlaylist(playlistId)
-            } catch (e: Exception) {
-                // Mock servis/bağlantı hatası durumunda bile arayüzün doğru çalışması için hatayı yutuyoruz.
-            }
+            meApi.deletePlaylist(playlistId)
+            Unit
         }
 }

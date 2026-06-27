@@ -1,21 +1,22 @@
 package com.turkcell.lyraapp.ui.player
 
 import android.content.Context
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.turkcell.lyraapp.data.local.FavoriteSong
+import com.turkcell.lyraapp.data.local.FavoritesStore
 import com.turkcell.lyraapp.data.player.GlobalPlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-import com.turkcell.lyraapp.data.local.FavoritesStore
 
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
@@ -30,14 +31,24 @@ class PlayerViewModel @Inject constructor(
     }
     private val title: String = savedStateHandle.get<String>(ARG_TITLE).orEmpty()
     private val artist: String = savedStateHandle.get<String>(ARG_ARTIST).orEmpty()
+    private val coverUrl: String = savedStateHandle.get<String>(ARG_COVER_URL).orEmpty()
+    private val playlistName: String = savedStateHandle.get<String>(ARG_PLAYLIST_NAME).orEmpty()
+    private val isFavoriteArg: Boolean = savedStateHandle.get<Boolean>(ARG_IS_FAVORITE) ?: false
+
+    /** Palette API'den UI katmanı tarafından yazılan baskın renk. */
+    private val _dominantColor = MutableStateFlow<Color?>(null)
 
     val uiState: StateFlow<PlayerUiState> = combine(
         globalPlayerManager.playerState,
-        favoritesStore.favoriteSongIds
-    ) { state, favoriteIds ->
+        favoritesStore.favoriteSongIds,
+        _dominantColor,
+    ) { state, favoriteIds, dominantColor ->
         PlayerUiState(
+            songId = songId,
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
+            coverUrl = coverUrl,
+            playlistName = playlistName,
             isPlaying = state.isPlaying,
             isLoading = state.isLoading,
             isBuffering = state.isBuffering,
@@ -46,18 +57,27 @@ class PlayerViewModel @Inject constructor(
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
             errorMessage = state.errorMessage,
-            isFavorite = favoriteIds.contains(songId)
-            // İlerleyen fazlarda ihtiyaç halinde buraya globalPlayerManager üzerinden
-            // repeatMode, isShuffling gibi durumlar da map'lenebilir.
+            isFavorite = favoriteIds.contains(songId),
+            dominantColor = dominantColor,
+            canSkipNext = state.canSkipNext,
+            canSkipPrevious = state.canSkipPrevious,
         )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = PlayerUiState(title = title, artist = artist, isLoading = true)
+        initialValue = PlayerUiState(
+            songId = songId,
+            title = title,
+            artist = artist,
+            coverUrl = coverUrl,
+            playlistName = playlistName,
+            isFavorite = isFavoriteArg,
+            isLoading = true
+        ),
     )
 
     init {
-        // Eğer manager şu an BU şarkıyı çalmıyorsa, çalmasını söylüyoruz.
+        // Manager şu an BU şarkıyı çalmıyorsa, çalmasını söylüyoruz.
         if (globalPlayerManager.playerState.value.songId != songId) {
             globalPlayerManager.playSong(songId, title, artist)
         }
@@ -65,26 +85,19 @@ class PlayerViewModel @Inject constructor(
 
     fun onIntent(intent: PlayerIntent) {
         when (intent) {
-            // Mevcut Lojikleriniz (Aynen Korundu)
             PlayerIntent.TogglePlayPause -> globalPlayerManager.togglePlayPause()
             PlayerIntent.Restart -> globalPlayerManager.restart()
             PlayerIntent.SeekForward -> globalPlayerManager.seekBy(SEEK_STEP_MS)
             PlayerIntent.SeekBackward -> globalPlayerManager.seekBy(-SEEK_STEP_MS)
             is PlayerIntent.SeekTo -> globalPlayerManager.seekTo(intent.positionMs)
             PlayerIntent.Retry -> globalPlayerManager.playSong(songId, title, artist)
-
-            // ─── YENİ KONTRATA GÖRE IDE HATASINI ÇÖZEN EKSİK DALLAR ───
-            PlayerIntent.SkipNext -> {
-                globalPlayerManager.playNext()
-            }
-            PlayerIntent.SkipPrevious -> {
-                // TODO: İlerleyen fazda playlist kuyruğu bağlandığında manager tetiklenecek
-            }
+            PlayerIntent.SkipNext -> globalPlayerManager.playNext()
+            PlayerIntent.SkipPrevious -> globalPlayerManager.playPrevious()
             PlayerIntent.ToggleFavorite -> {
                 viewModelScope.launch {
                     val currentState = globalPlayerManager.playerState.value
                     favoritesStore.toggleFavorite(
-                        com.turkcell.lyraapp.data.local.FavoriteSong(
+                        FavoriteSong(
                             id = songId,
                             title = currentState.title.ifEmpty { title },
                             artist = currentState.artist.ifEmpty { artist },
@@ -103,7 +116,7 @@ class PlayerViewModel @Inject constructor(
                 // TODO: Karışık çalma lojiği bağlandığında tetiklenecek
             }
             is PlayerIntent.UpdateDominantColor -> {
-                // TODO: Palette API'den gelen renk durumunu UI state'e yazma lojiği
+                _dominantColor.value = intent.color?.let { Color(it) }
             }
         }
     }
@@ -119,6 +132,9 @@ class PlayerViewModel @Inject constructor(
         const val ARG_SONG_ID = "songId"
         const val ARG_TITLE = "title"
         const val ARG_ARTIST = "artist"
+        const val ARG_COVER_URL = "coverUrl"
+        const val ARG_PLAYLIST_NAME = "playlistName"
+        const val ARG_IS_FAVORITE = "isFavorite"
 
         private const val SEEK_STEP_MS = 10_000L
     }

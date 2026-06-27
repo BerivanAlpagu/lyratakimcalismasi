@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
  * ele alındığından ayrı bir Effect tanımına gerek yoktur.
  */
 data class PlayerUiState(
+    val songId: String = "",
     val title: String = "",
     val artist: String = "",
     val playlistName: String = "",

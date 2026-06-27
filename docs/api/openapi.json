@@ -147,7 +147,7 @@
                     "auth"
                 ],
                 "summary": "Verify an OTP and obtain access + refresh tokens",
-                "description": "Verifies the OTP for a phone number. Because the SMS system is mocked, the following codes are **ALWAYS valid**:\n\n- `280600`\n- `260702`\n- `250506`\n- `101000`\n- `346134`\n- `123456`\n\nAny other code returns **401**. On success the user is created on first login (passwordless signup) and a JWT access token plus an opaque refresh token are returned. Send the access token as `Authorization: Bearer \u003Ctoken\u003E` to the `/api/v1/me/*` endpoints.",
+                "description": "Verifies the OTP for a phone number. Because the SMS system is mocked, the following codes are **ALWAYS valid**:\n\n- `280600`\n- `260702`\n- `250506`\n- `101000`\n- `346134`\n- `123456`\n\nAny other code returns **401**. On success the user is created on first login (passwordless signup) and a JWT access token plus an opaque refresh token are returned. Send the access token as `Authorization: Bearer <token>` to the `/api/v1/me/*` endpoints.",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -1549,7 +1549,7 @@
                         "bearerAuth": []
                     }
                 ],
-                "description": "Returns a URL the client passes directly to ExoPlayer. The signature is an HMAC-SHA256 over `\u003CsongId\u003E:\u003CexpiresAt\u003E`; TTL is 300 seconds by default. Mint right before playback rather than caching alongside list responses.\n\n**Premium only.** This bypasses ad gating, so free-tier users get 403 and must use `POST /api/v1/me/playback/next` instead.",
+                "description": "Returns a URL the client passes directly to ExoPlayer. The signature is an HMAC-SHA256 over `<songId>:<expiresAt>`; TTL is 300 seconds by default. Mint right before playback rather than caching alongside list responses.\n\n**Premium only.** This bypasses ad gating, so free-tier users get 403 and must use `POST /api/v1/me/playback/next` instead.",
                 "parameters": [
                     {
                         "$ref": "#/components/parameters/SongId"
@@ -1855,7 +1855,7 @@
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT",
-                "description": "Paste the `accessToken` from `POST /api/v1/auth/otp/verify`. It is sent as `Authorization: Bearer \u003Ctoken\u003E`."
+                "description": "Paste the `accessToken` from `POST /api/v1/auth/otp/verify`. It is sent as `Authorization: Bearer <token>`."
             }
         },
         "parameters": {
