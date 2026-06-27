@@ -44,10 +44,10 @@ class PlayerViewModel @Inject constructor(
         _dominantColor,
     ) { state, favoriteIds, dominantColor ->
         PlayerUiState(
-            songId = songId,
+            songId = state.songId ?: songId,
             title = state.title.ifEmpty { title },
             artist = state.artist.ifEmpty { artist },
-            coverUrl = coverUrl,
+            coverUrl = if (state.songId == null || state.songId == this@PlayerViewModel.songId) coverUrl else "",
             playlistName = playlistName,
             isPlaying = state.isPlaying,
             isLoading = state.isLoading,
@@ -57,7 +57,7 @@ class PlayerViewModel @Inject constructor(
             durationMs = state.durationMs,
             bufferedMs = state.bufferedMs,
             errorMessage = state.errorMessage,
-            isFavorite = favoriteIds.contains(songId),
+            isFavorite = favoriteIds.contains(state.songId ?: songId),
             dominantColor = dominantColor,
             canSkipNext = state.canSkipNext,
             canSkipPrevious = state.canSkipPrevious,

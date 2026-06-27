@@ -25,6 +25,12 @@ import com.turkcell.lyraapp.LyraMediaService
 import androidx.media3.common.MediaMetadata
 import javax.inject.Inject
 import javax.inject.Singleton
+import coil.imageLoader
+import coil.request.ImageRequest
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.Bitmap
+import java.io.ByteArrayOutputStream
+import androidx.media3.common.C
 
 @Singleton
 class GlobalPlayerManager @Inject constructor(
@@ -242,12 +248,10 @@ class GlobalPlayerManager @Inject constructor(
         artist: String,
         url: String,
     ) {
-        val dummyCoverUrl = "https://picsum.photos/seed/$mediaId/300/300"
         val mediaMetadata = MediaMetadata.Builder()
             .setTitle(title)
             .setArtist(artist)
             .setDisplayTitle(title)
-            .setArtworkUri(Uri.parse(dummyCoverUrl))
             .build()
 
         val mediaItem = MediaItem.Builder()

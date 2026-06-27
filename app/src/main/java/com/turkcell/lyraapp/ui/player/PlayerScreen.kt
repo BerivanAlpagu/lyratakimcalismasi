@@ -239,6 +239,7 @@ private fun CoverArt(
     AsyncImage(
         model = ImageRequest.Builder(context)
             .data(actualCoverUrl)
+            .allowHardware(false)
             .crossfade(true)
             .build(),
         contentDescription = "Albüm kapağı",
