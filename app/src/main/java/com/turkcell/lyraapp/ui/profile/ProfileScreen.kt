@@ -210,7 +210,7 @@ private fun ProfileContent(
         Spacer(modifier = Modifier.height(24.dp))
         
         // Premium Banner
-        val isPremium = user.membership?.status == "active"
+        val isPremium = user.membership?.status == com.turkcell.lyraapp.data.profile.MembershipStatus.Active
         val expiresAt = user.membership?.expiresAt
         
         val daysLeft = try {
@@ -235,7 +235,7 @@ private fun ProfileContent(
                 .padding(horizontal = 24.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(Brush.horizontalGradient(listOf(Color(0xFFE91E63), Color(0xFF9C27B0))))
-                .clickable { onIntent(ProfileIntent.PremiumClicked) }
+                .clickable { onIntent(ProfileIntent.PremiumCardClicked) }
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {

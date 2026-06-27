@@ -12,7 +12,9 @@ data class UserProfile(
     val followingCount: Int,
     val avatarUrl: String? = null,
     val membership: UserMembership? = null,
-)
+) {
+    val name: String get() = "$firstName $lastName".trim()
+}
 
 data class UserMembership(
     val planId: String,

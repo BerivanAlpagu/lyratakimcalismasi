@@ -58,11 +58,6 @@ interface MeApi {
         @Path("id") playlistId: String,
     ): DeletePlaylistResponse
 
-    @POST("api/v1/me/playback/next")
-    suspend fun getPlaybackNext(@Body request: PlaybackNextRequestDto): PlaybackNextResponseDto
-
-    @POST("api/v1/me/playback/ad-complete")
-    suspend fun completeAd(@Body request: AdCompleteRequestDto): AdCompleteResponseDto
 }
 
 @Serializable
@@ -178,50 +173,6 @@ data class RemoveSongResponse(
 data class RemoveSongData(
     val removed: Boolean
 )
-
-@Serializable
-data class PlaybackNextRequestDto(val songId: String)
-
-@Serializable
-data class PlaybackNextResponseDto(
-    val data: PlaybackItemDto
-)
-
-@Serializable
-sealed class PlaybackItemDto {
-    @Serializable
-    @kotlinx.serialization.SerialName("song")
-    data class SongPlayback(
-        val song: SongDto,
-        val streamUrl: String
-    ) : PlaybackItemDto()
-
-    @Serializable
-    @kotlinx.serialization.SerialName("ad")
-    data class AdPlayback(
-        val ad: AdDto,
-        val impressionId: String,
-        val song: SongDto,
-        val songStreamUrl: String
-    ) : PlaybackItemDto()
-}
-
-@Serializable
-data class AdDto(
-    val id: String,
-    val title: String,
-    val streamUrl: String,
-    val durationMs: Long
-)
-
-@Serializable
-data class AdCompleteRequestDto(val impressionId: String)
-
-@Serializable
-data class AdCompleteResponseDto(val data: AdCompleteDataDto)
-
-@Serializable
-data class AdCompleteDataDto(val completed: Boolean)
 
 @Serializable
 data class DeletePlaylistResponse(
